@@ -53,3 +53,10 @@ sudo systemctl enable var-run-sdp.path
 sudo systemctl enable var-run-sdp.service
 sudo systemctl start var-run-sdp.path
 ```
+
+## not having to accept every new device!
+`sudo raspi-config`
+and change under:
+`System Options`
+`S5 Boot`
+to `B1 Console Text console`
