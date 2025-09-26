@@ -1,8 +1,8 @@
 # Headder
 - mes-type: 1Byte (merge down?)
+- message-id: 58bit/7Bytes
 
 ## of type 0 (MSG)
-- message-id: 58bit/7Bytes
 - src: 2Bytes unused, 6 Bytes MAC, 4 Bytes Port
 - dst: 2Bytes unused, 6 Bytes MAC, 4 Bytes Port
 - len: 4Bytes of length
@@ -10,12 +10,10 @@
 - crc: 4 Bytes
 
 ## of type 1 (ACK)
-- message-id: 58bit/7Bytes
 - len: 4Bytes of length (here not used)
 - crc: 4 Bytes
 
 ## of type 1 (NAK)
-- message-id: 58bit/7Bytes
 - len: 4Bytes of length (here not used)
 - crc: 4 Bytes
 
