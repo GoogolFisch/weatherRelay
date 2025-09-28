@@ -67,6 +67,5 @@ class Message:
             crc += b
             crc &= 0xff_ff_ff_ff
             crc ^= crc >> 23 
-        print(crc)
         data += struct.pack(">I",crc)
         return data

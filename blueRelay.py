@@ -50,8 +50,8 @@ if(config_data["client"]):
         connections.append(sock)
 
 def readDataFromSocket(socket):
-    data = ''
-    buffer = ''
+    data = b''
+    buffer = b''
     try:
         while True:
             data = socket.recv(4096)
@@ -67,6 +67,7 @@ def readDataFromSocket(socket):
     if data: print('received', buffer)
     else:
         print('disconnected')
+        connections.remove(socket)
     return buffer
 
 def main():
@@ -112,8 +113,17 @@ def main():
                 mesBin = pl.MAIN.readWrite(None)
                 print(mesBin)
                 for mes in mesBin:
+                    mesBin = mes.getBytes()
                     for sc in connections:
-                        sc.send(mes.getBytes())
+                        print(mes,sc)
+                        try:
+                            sc.send(mesBin)
+                        except Exception as error:
+                            print(error,
+                            type(error).__name__,          # TypeError
+                            __file__,                  # /tmp/example.py
+                            error.__traceback__.tb_lineno  # 2
+                            )
     except KeyboardInterrupt:
         for c in connections:
             print(c)
