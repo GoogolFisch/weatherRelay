@@ -4,6 +4,8 @@ import socket
 import util
 import json
 import select
+import uuid
+import struct
 
 
 class TcpBlueConn:
@@ -13,9 +15,13 @@ class TcpBlueConn:
     def __init__(self,pair,socket):
         self.pair = pair
         self.socket = socket
+        self.id = uuid.uuid4().int & 0xffff_ffff
 
 class TcpSink(acceptor.Acceptor):
     connections = []
+    socketTbc = {}
+    idTbc = {}
+
     server = None
     pair = None
 
@@ -34,6 +40,8 @@ class TcpSink(acceptor.Acceptor):
         #server.setblocking(0)
         self.server.settimeout(0)
         self.connections.append(self.server)
+        self.socketTbc = {}
+        self.idTbc = {}
 
     def readDataFromSocket(self, socket):
         data = ''
@@ -56,6 +64,9 @@ class TcpSink(acceptor.Acceptor):
             print('received', buffer)
         else:
             self.connections.remove(socket)
+            tbc = self.socketTbc[socket]
+            self.socketTbc.remove(socket)
+            self.idTbc.remove(tbc.id)
         return buffer
 
 
@@ -72,9 +83,34 @@ class TcpSink(acceptor.Acceptor):
                 continue
             else:
                 dda = self.readDataFromSocket(s)
-                print(dda)
+                # idk
+                outputList.append(util.Message(self.pair,dda))
+                print(self.socketTbc,s)
+                bb = self.socketTbc.get(s)
+                if(bb is None):
+                    bb = TcpBlueConn(self.pair,s)
+                    self.socketTbc[s] = bb
+                    self.idTbc[bb.id] = bb
+                outputList.append(struct.pack(">l>i",bb.id,len(dda)) + dda)
+                # sending over br
         if data is not None:
+            cid,len = struct.unpack(">l>i",data)
+            mms = data[6:6+len]
             print(data)
+            pairing = self.idTbc.get(cid)
+            # sending over tcp
+            if(paring is not None):
+                # reusing build socket
+                pairing.socket.send(mms)
+            else:
+                soc = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+                soc.connect((HOST,POINT_PORT))
+                tbc = TcpBlueConn(data.pair,soc)
+                self.connections.append(soc)
+                self.idTbc[cid] = tbc
+                self.socketTbc[soc] = tbc
+                soc.send(mms)
+
 
 
         # send con-id stuff, with len + data

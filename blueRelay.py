@@ -85,13 +85,12 @@ def main():
                     connection.setblocking(0)
                     connections.append(connection)
                     continue
-                else:
-                    data = readDataFromSocket(s)
-                    msg = Message.fromBytearray(data)
-                    message_queue.append(msg)
-                    print(data)
+                data = readDataFromSocket(s)
+                msg = util.Message.fromBytearray(data)
+                message_queue.append(msg)
+                print(data)
             for mes in message_queue:
-                if(mes.dstPort != thisMac):
+                if(mes.dstMac != thisMac):
                     get = messageMap.get(mes.pair.uuid)
                     if(get is not None):
                         continue
