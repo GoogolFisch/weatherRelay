@@ -37,14 +37,14 @@ class TcpSink(acceptor.Acceptor):
 
     def readDataFromSocket(self, socket):
         data = ''
-        buffer = ''
+        buffer = b''
         try:
             while True:
                 data = socket.recv(4096)
                 if not data:break
                 buffer += data
 
-        except Except as error: 
+        except Exception as error: 
             print(
             type(error).__name__,          # TypeError
             __file__,                  # /tmp/example.py
@@ -55,16 +55,16 @@ class TcpSink(acceptor.Acceptor):
         if data:
             print('received', buffer)
         else:
-            print('disconnected')
+            self.connections.remove(socket)
         return buffer
 
 
-    def readWrite(self,data:list[util.Message]) -> list[util.Message]:
+    def readWrite(self,data:util.Message) -> list[util.Message]:
         readable, writable, exceptional = select.select(
         self.connections, [], self.connections, 1)
         outputList = []
         for s in readable:
-            if s is server_socket:
+            if s is self.server:
                 connection, client_address = s.accept()
                 print(f"{connection=} {client_address=}")
                 connection.setblocking(0)
@@ -73,13 +73,16 @@ class TcpSink(acceptor.Acceptor):
             else:
                 dda = self.readDataFromSocket(s)
                 print(dda)
-        for msg in data:
-            print(msg)
+        if data is not None:
+            print(data)
 
 
         # send con-id stuff, with len + data
         return outputList
 
     def close(self):
+        print(f"{len(self.connections)} of connections")
+        for c in self.connections:
+            c.close()
         self.server.close()
 MAIN = TcpSink

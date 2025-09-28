@@ -26,10 +26,38 @@ class Pair:
 
 class Message:
     pair = None
+    message = None
     def __init__(self,pair,message):
         self.pair = pair
+        self.message = message
+    def fromBytearray(message):
+        index = 0
+        mesList = []
+        while len(message):
+            pp = struct.unpack("<l>l>i>l>i>i",message[index:])
+            uuid, srcMac,srcPort, dstMac,dstPort,leng = pp
+            pair = Pair(dstMax,srcPort,dstPort)
+            pair.srcMac = srcMac
+            pair.uuid = uuid
+            pp = message[index:36 + leng + index]
+            if(len(pp) != leng):break
+            mesOut = Message(pair,pp)
+            crcIndex = 8
+            crc = 0
+            # calc crc
+            for b in range(crcIndex + index,36 + index + leng):
+                crc ^= crc << 7
+                crc += b
+                crc &= 0xff_ff_ff_ff
+                crc ^= crc >> 23 
+            tstCrc = struct.unpack(">i",message[index + 36 + leng:])
+            index += leng + 36 + 44
+            mesList.append(mesOut)
+        return (mesList,index)
+
+
     def getBytes(self):
-        data = piar.getBytes() + struct.pack(">i",len(message)) + message
+        data = piar.getBytes() + struct.pack(">i",len(self.message)) + self.message
         crcIndex = 8
         crc = 0
         # calc crc
