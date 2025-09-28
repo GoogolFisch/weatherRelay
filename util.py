@@ -19,7 +19,7 @@ class Pair:
         return Pair(self.dstMax,self.srcPort,self.dstPort)
     def getBytes(self):
         # uuid, src(mac,port),dst(mac,port)
-        return struct.pack("<l>l>i>l>i",
+        return struct.pack(">Qqiqi",
                            self.uuid & (~0xff),
                            self.srcMac,self.srcPort,
                            self.dstMac,self.dstPort)
@@ -34,7 +34,7 @@ class Message:
         index = 0
         mesList = []
         while len(message):
-            pp = struct.unpack("<l>l>i>l>i>i",message[index:])
+            pp = struct.unpack(">Qqiqii",message[index:])
             uuid, srcMac,srcPort, dstMac,dstPort,leng = pp
             pair = Pair(dstMax,srcPort,dstPort)
             pair.srcMac = srcMac
@@ -50,14 +50,15 @@ class Message:
                 crc += b
                 crc &= 0xff_ff_ff_ff
                 crc ^= crc >> 23 
-            tstCrc = struct.unpack(">i",message[index + 36 + leng:])
+            tstCrc = struct.unpack(">I",message[index + 36 + leng:])
             index += leng + 36 + 44
-            mesList.append(mesOut)
+            if(tstCrc == crc):
+                mesList.append(mesOut)
         return (mesList,index)
 
 
     def getBytes(self):
-        data = piar.getBytes() + struct.pack(">i",len(self.message)) + self.message
+        data = self.pair.getBytes() + struct.pack(">i",len(self.message)) + self.message
         crcIndex = 8
         crc = 0
         # calc crc
@@ -66,5 +67,6 @@ class Message:
             crc += b
             crc &= 0xff_ff_ff_ff
             crc ^= crc >> 23 
-        data += struct.pack(">i",crc)
+        print(crc)
+        data += struct.pack(">I",crc)
         return data

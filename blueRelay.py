@@ -75,7 +75,7 @@ def main():
         counter = 0
         while True:
             counter += 1
-            time.sleep(0.1)
+            time.sleep(0.01)
             readable, writeable, exceptional = select.select(
                     connections,[],connections,1)
             for s in readable:
@@ -86,8 +86,9 @@ def main():
                     connections.append(connection)
                     continue
                 data = readDataFromSocket(s)
-                msg = util.Message.fromBytearray(data)
-                message_queue.append(msg)
+                (msg,ind) = util.Message.fromBytearray(data)
+                print(ind,len(data))
+                message_queue.extend(msg)
                 print(data)
             for mes in message_queue:
                 if(mes.dstMac != thisMac):

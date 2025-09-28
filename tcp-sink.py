@@ -15,7 +15,7 @@ class TcpBlueConn:
     def __init__(self,pair,socket):
         self.pair = pair
         self.socket = socket
-        self.id = uuid.uuid4().int & 0xffff_ffff
+        self.id = uuid.uuid4().int & ((1 << 64) - 1)
 
 class TcpSink(acceptor.Acceptor):
     connections = []
@@ -91,11 +91,12 @@ class TcpSink(acceptor.Acceptor):
                     bb = TcpBlueConn(self.pair,s)
                     self.socketTbc[s] = bb
                     self.idTbc[bb.id] = bb
-                outputList.append(struct.pack(">l>i",bb.id,len(dda)) + dda)
+                outputList.append(util.Message(bb.pair,
+                    struct.pack(">Qi",bb.id,len(dda)) + dda))
                 # sending over br
         if data is not None:
-            cid,len = struct.unpack(">l>i",data)
-            mms = data[6:6+len]
+            cid,leng = struct.unpack(">Qi",data)
+            mms = data[6:6+leng]
             print(data)
             pairing = self.idTbc.get(cid)
             # sending over tcp
