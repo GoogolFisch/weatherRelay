@@ -65,7 +65,8 @@ def readDataFromSocket(socket):
         )
         print(f'socket.error - ({error})')
     if data: print('received', buffer)
-    else: print('disconnected')
+    else:
+        print('disconnected')
     return buffer
 
 def main():
@@ -95,15 +96,24 @@ def main():
                     if(get is not None):
                         continue
                     messageMap[mes.pair.uuid] = mes
+                    # relay messages!
+                    for sc in connections:
+                        sc.send(mes.getBytes())
                     continue
                 pl = serviceMap[mes.dstPort]
                 mesBin = pl.MAIN.readWrite(mes)
-                print(mesBin)
+                for mes in mesBin:
+                    for sc in connections:
+                        sc.send(mes.getBytes())
             if(counter % 10 != 0):
                 continue
+            # no starve calling
             for pl in plugins:
                 mesBin = pl.MAIN.readWrite(None)
                 print(mesBin)
+                for mes in mesBin:
+                    for sc in connections:
+                        sc.send(mes.getBytes())
     except KeyboardInterrupt:
         for c in connections:
             print(c)
