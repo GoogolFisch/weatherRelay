@@ -7,6 +7,7 @@ import select
 import uuid
 import struct
 
+PORT = 22
 
 class TcpBlueConn:
     pair = None
@@ -65,8 +66,8 @@ class TcpSink(acceptor.Acceptor):
         else:
             self.connections.remove(socket)
             tbc = self.socketTbc[socket]
-            self.socketTbc.remove(socket)
-            self.idTbc.remove(tbc.id)
+            self.socketTbc.pop(socket)
+            self.idTbc.pop(tbc.id)
         return buffer
 
 

@@ -8,6 +8,11 @@
 			"port":2202,
 			"socPort":22,
 			"dstMac":-1
+		},
+		{
+			"file":"ping-service",
+			"port":2202,
+			"socPort":1
 		}
 	]
 }

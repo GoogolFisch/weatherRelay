@@ -16,13 +16,15 @@ class Pair:
     def reUse(self):
         self.uuid = uuid.uuid4().int & ((1 << 64) - 1)
     def copy(self):
-        return Pair(self.dstMax,self.srcPort,self.dstPort)
+        return Pair(self.dstMac,self.srcPort,self.dstPort)
     def getBytes(self):
         # uuid, src(mac,port),dst(mac,port)
         return struct.pack(">Qqiqi",
                            self.uuid & (~0xff),
                            self.srcMac,self.srcPort,
                            self.dstMac,self.dstPort)
+    def reverse(self):
+        return Pair(self.srcMax,self.dstPort,self.srcPort)
 
 class Message:
     pair = None
