@@ -35,14 +35,16 @@ class Message:
     def fromBytearray(message):
         index = 0
         mesList = []
-        while len(message):
-            pp = struct.unpack(">Qqiqii",message[index:])
+        while index < len(message):
+            print(message[index:])
+            pp = struct.unpack(">Qqiqii",message[index:index+36])
             uuid, srcMac,srcPort, dstMac,dstPort,leng = pp
-            pair = Pair(dstMax,srcPort,dstPort)
+            pair = Pair(dstMac,srcPort,dstPort)
             pair.srcMac = srcMac
             pair.uuid = uuid
             pp = message[index:36 + leng + index]
-            if(len(pp) != leng):break
+            if(len(pp) != leng):
+                break
             mesOut = Message(pair,pp)
             crcIndex = 8
             crc = 0
@@ -52,7 +54,7 @@ class Message:
                 crc += b
                 crc &= 0xff_ff_ff_ff
                 crc ^= crc >> 23 
-            tstCrc = struct.unpack(">I",message[index + 36 + leng:])
+            tstCrc = struct.unpack(">I",message[index + 36 + leng:index + 36 + leng + 4])
             index += leng + 36 + 44
             if(tstCrc == crc):
                 mesList.append(mesOut)
