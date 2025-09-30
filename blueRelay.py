@@ -111,7 +111,7 @@ def main():
             # no starve calling
             for pl in plugins:
                 messages = pl.MAIN.readWrite(None)
-                print(mesBin)
+                print(pl,messages)
                 for mes in messages:
                     mesBin = mes.getBytes()
                     for sc in connections:
