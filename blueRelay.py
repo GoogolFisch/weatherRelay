@@ -1,6 +1,6 @@
 
 import bluetooth
-import util
+import rawsocketpy
 import json
 import select
 import time
