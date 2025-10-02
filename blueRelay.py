@@ -78,9 +78,11 @@ def main():
             counter += 1
             time.sleep(0.01)
             readable, writeable, exceptional = select.select(
-                    connections,[],connections,1)
+                    connections,[],connections,0.1)
+                    #connections,[],[],1)
             for s in readable:
                 if s is blueServer:
+                    print("Hello")
                     connection, client_address = blueServer.accept()
                     print(f"{connection=} {client_address=}")
                     connection.setblocking(0)
@@ -115,6 +117,7 @@ def main():
                 for mes in messages:
                     mesBin = mes.getBytes()
                     for sc in connections:
+                        if sc is blueServer:continue
                         print(mes,sc)
                         try:
                             sc.send(mesBin)

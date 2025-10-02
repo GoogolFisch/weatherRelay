@@ -73,7 +73,8 @@ class TcpSink(acceptor.Acceptor):
 
     def readWrite(self,data:util.Message) -> list[util.Message]:
         readable, writable, exceptional = select.select(
-        self.connections, [], self.connections, 1)
+            #self.connections, [], self.connections, 1)
+            self.connections, [], [], 0.1)
         outputList = []
         for s in readable:
             if s is self.server:
