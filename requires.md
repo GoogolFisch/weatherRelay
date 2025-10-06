@@ -5,6 +5,7 @@
 Ubuntu \
 `apt install libbluretooth-dev` \
 `pip install git+https://github.com/pybluez/pybluez.git#egg=pybluez`
+`pip install scapy`
 
 ## configs
 `sudo hciconfig hci0 piscan`
