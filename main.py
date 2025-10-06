@@ -95,6 +95,7 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
             
 
 def readDataFromSocket(socket):
+    return socket.recv(65535)
     data = b''
     buffer = b''
     try:
@@ -140,16 +141,16 @@ def blueHandel(sock,connections):
                 if(len(data) <= 0):
                     continue
                 if(data[0] >> 4 == 4):
-                    pkg = packetBase4.__class__.fromBytearray(data)
+                    pkg = packetBase4.__class__(data)
                 elif(data[0] >> 4 == 6):
-                    pkg = packetBase6.__class__.fromBytearray(data)
+                    pkg = packetBase6.__class__(data)
                 else:print(data);continue
                 if(pkg.dst == myIp4 and pkg.dst != myIp6):
                     print(f"getting IP: {pkg.dst}")
                     # send to self
                     del(pkg.chksum)
                     # funny stuff
-                    pkg.dst = ["127.0.0.1","::1"][(pkg.version - 4) / 2]
+                    pkg.dst = ["127.0.0.1","::1"][(pkg.version - 4) // 2]
                     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
                     #outing = pkg.do_build()
                     scapy.all.send(pkg)
