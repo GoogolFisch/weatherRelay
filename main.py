@@ -178,6 +178,8 @@ def startIpHandel(*_,**__):
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 sniffThread = threading.Thread(target=startIpHandel, args=(1,))
+blueThread.start()
+sniffThread.start()
 try:
     while running: time.sleep(1)
 except:pass
