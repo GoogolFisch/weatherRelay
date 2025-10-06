@@ -172,7 +172,7 @@ def ipHandel(packet):
 
 def startIpHandel(*_,**__):
     global running
-    scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: running)
+    scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
     running = False
 
 
