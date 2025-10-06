@@ -22,7 +22,7 @@ uuid = config_data["uuid"]
 if(config_data["server"]):
     blueServer = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
     blueServer.bind(("",bluetooth.PORT_ANY))
-    blueServer.listen(2)
+    blueServer.listen(8)
 
     port = blueServer.getsockname()[1]
     bluetooth.advertise_service(blueServer, "BlueRelay", service_id=uuid,
@@ -61,29 +61,38 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 
 def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
-    del(pkg.chsum)
+    del(pkg.chksum)
     # find best connection...
     (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
     (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
     # clean-up
     if(srcTime < cmpTime - timeToDeath):
         # if too old!
-        redirectMap.pop(pkg.src)
+        if(srcSock is not None):
+            redirectMap.pop(pkg.src)
         srcHops = 999
-    if(srcHops >= pkg.hops() and s is not None):
+    if(srcHops >= pkg.hops() and sock is not None):
         # renew the src
         redirectMap[pkg.src] = (sock,cmpTime,pkg.hops())
-    if(dstTime < cmpTime - timeToDeath):
+    if(dstTime < cmpTime - timeToDeath and dstSock is not None):
         # if too old!
         redirectMap.pop(pkg.dst)
         dstSock = None
     # send message
     if(dstSock is not None):
         # "best" path
-        dstSock.send(data)
-        return
+        try:
+            dstSock.send(pkg.do_build())
+            return
+        except:
+            # connection closed?
+            redirectMap.pop(pkg.dst)
     for cnn in connections:
-        cnn.send(data)
+        if(cnn is blueServer):continue
+        try:
+            cnn.send(pkg.do_build())
+        except:pass
+            
 
 def readDataFromSocket(socket):
     data = b''
@@ -97,9 +106,9 @@ def readDataFromSocket(socket):
         print(
         type(error).__name__,          # TypeError
         __file__,                  # /tmp/example.py
-        error.__traceback__.tb_lineno  # 2
+        error.__traceback__.tb_lineno,  # 2
+        error
         )
-        print(f'socket.error - ({error})')
     if data: print('received', buffer)
     else:
         print('disconnected')
@@ -128,6 +137,8 @@ def blueHandel(sock,connections):
                     connections.append(connection)
                     continue
                 data = readDataFromSocket(s)
+                if(len(data) <= 0):
+                    continue
                 if(data[0] >> 4 == 4):
                     pkg = packetBase4.__class__.fromBytearray(data)
                 elif(data[0] >> 4 == 6):
@@ -136,7 +147,7 @@ def blueHandel(sock,connections):
                 if(pkg.dst == myIp4 and pkg.dst != myIp6):
                     print(f"getting IP: {pkg.dst}")
                     # send to self
-                    del(pkg.chsum)
+                    del(pkg.chksum)
                     # funny stuff
                     pkg.dst = ["127.0.0.1","::1"][(pkg.version - 4) / 2]
                     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
@@ -144,16 +155,22 @@ def blueHandel(sock,connections):
                     scapy.all.send(pkg)
                     continue
                 print(f"passing IP: {pkg.dst}")
-                trySendPacket(pkg,defalutVec,cmpTime,s)
+                trySendPacket(pkg,defaultVec,cmpTime,s)
             if len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
-                trySendPacket(pkg,defalutVec,cmpTime)
+                print(f"Destination IP: {pkg.dst}")
+                trySendPacket(pkg,defaultVec,cmpTime)
 
         # end of while
-    except Exception as e:
+    except Exception as error:
         # error out
         running = False
-        print(e)
+        print(
+        type(error).__name__,          # TypeError
+        __file__,                  # /tmp/example.py
+        error.__traceback__.tb_lineno,  # 2
+        error
+        )
 
 
 def ipHandel(packet):
@@ -161,14 +178,14 @@ def ipHandel(packet):
         ip_layer = packet[scapy.all.IP]
         if(ip_layer.dst.startswith("10.")):
             packet.src = myIp4
-            messageQueue.append(packet)
-            print(f"Destination IP: {ip_layer.dst}")
+            messageQueue.append(ip_layer)
+            #messageQueue.append(packet)
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if(ip_layer.dst.startswith("10:")):
             packet.dst = myIp4
-            messageQueue.append(packet)
-            print(f"Destination IP: {ip_layer.dst}")
+            messageQueue.append(ip_layer)
+            #messageQueue.append(packet)
 
 def startIpHandel(*_,**__):
     global running
