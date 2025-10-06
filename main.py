@@ -15,7 +15,6 @@ with open(CONFIG_FILE,"r") as fptr:
 # maybe add plugins?
 
 # starting main part
-thisMac = util.Pair.srcMac
 connections = []
 blueServer = None
 uuid = config_data["uuid"]
@@ -51,15 +50,18 @@ if(config_data["client"]):
 messageQueue = []
 redirectMap = {} # this will be generated
 # TODO add more features here
-myIp4 = ".".join([10] + [random.randrange(256) for _ in range(3)])
-myIp6 = ":".join([10] + [random.randrange(65536) for _ in range(7)])
-myIp4 = config_data.get("ip4") or myIp4
-myIp6 = config_data.get("ip6") or myIp6
+myIp4 = config_data.get("ip4") or "10.x.x.x"
+myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
+while("x" in myIp4):
+    myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
+while("x" in myIp6):
+    myIp6 = myIp6.replace("x",hex(random.randrange(0xffff))[2:],1)
 print(f"currently using:{myIp4},{myIp6} as addresses!")
 running = True
 timeToDeath = config_data.get("ttd") or 10
 
-def trySendPacket(pkg,defaultVec,cmpTime):
+def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
+    # find best connection...
     (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
     (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
     # clean-up
@@ -67,9 +69,9 @@ def trySendPacket(pkg,defaultVec,cmpTime):
         # if too old!
         redirectMap.pop(pkg.src)
         srcHops = 999
-    if(srcHops >= pkg.hops()):
+    if(srcHops >= pkg.hops() and s is not None):
         # renew the src
-        redirectMap[pkg.src] = (s,cmpTime,pkg.hops())
+        redirectMap[pkg.src] = (sock,cmpTime,pkg.hops())
     if(dstTime < cmpTime - timeToDeath):
         # if too old!
         redirectMap.pop(pkg.dst)
@@ -78,7 +80,7 @@ def trySendPacket(pkg,defaultVec,cmpTime):
     if(dstSock is not None):
         # "best" path
         dstSock.send(data)
-        continue
+        return
     for cnn in connections:
         cnn.send(data)
 
@@ -140,30 +142,10 @@ def blueHandel(sock,connections):
                     #outing = pkg.do_build()
                     scapy.all.send(pkg)
                     continue
-                # find best connection...
-                (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
-                (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
-                # clean-up
-                if(srcTime < cmpTime - timeToDeath):
-                    # if too old!
-                    redirectMap.pop(pkg.src)
-                    srcHops = 999
-                if(srcHops >= pkg.hops()):
-                    # renew the src
-                    redirectMap[pkg.src] = (s,cmpTime,pkg.hops())
-                if(dstTime < cmpTime - timeToDeath):
-                    # if too old!
-                    redirectMap.pop(pkg.dst)
-                    dstSock = None
-                # send message
-                if(dstSock is not None):
-                    # "best" path
-                    dstSock.send(data)
-                    continue
-                for cnn in connections:
-                    cnn.send(data)
+                trySendPacket(pkg,defalutVec,cmpTime,s)
             if len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
+                trySendPacket(pkg,defalutVec,cmpTime)
 
         # end of while
     except Exception as e:
@@ -182,12 +164,19 @@ def ipHandel(packet):
         if(ip_layer.dst.startswith("10:")):
             messageQueue.append(packet)
 
-def startIpHandel(**__):
-    scapy.all.sniff(prn=ipHandel)
+def startIpHandel(*_,**__):
+    global running
+    scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: running)
+    running = False
 
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 sniffThread = threading.Thread(target=startIpHandel, args=(1,))
+while running:
+    time.sleep(1)
+running = False
+blueThread.join()
+sniffThread.join()
 #rawSock.send()
 
 blueServer.close()
