@@ -56,7 +56,7 @@ while("x" in myIp4):
     myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
 while("x" in myIp6):
     myIp6 = myIp6.replace("x",hex(random.randrange(0xffff))[2:],1)
-print(f"currently using:{myIp4},{myIp6} as addresses!")
+print(f"currently using: {myIp4} , {myIp6} as addresses!")
 running = True
 timeToDeath = config_data.get("ttd") or 10
 
@@ -172,8 +172,9 @@ def startIpHandel(*_,**__):
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 sniffThread = threading.Thread(target=startIpHandel, args=(1,))
-while running:
-    time.sleep(1)
+try:
+    while running: time.sleep(1)
+except:pass
 running = False
 blueThread.join()
 sniffThread.join()
