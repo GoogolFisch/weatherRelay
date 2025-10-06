@@ -61,6 +61,7 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 
 def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
+    del(pkg.chsum)
     # find best connection...
     (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
     (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
@@ -132,8 +133,8 @@ def blueHandel(sock,connections):
                 elif(data[0] >> 4 == 6):
                     pkg = packetBase6.__class__.fromBytearray(data)
                 else:print(data);continue
-                print(pkg)
                 if(pkg.dst == myIp4 and pkg.dst != myIp6):
+                    print(f"getting IP: {pkg.dst}")
                     # send to self
                     del(pkg.chsum)
                     # funny stuff
@@ -142,6 +143,7 @@ def blueHandel(sock,connections):
                     #outing = pkg.do_build()
                     scapy.all.send(pkg)
                     continue
+                print(f"passing IP: {pkg.dst}")
                 trySendPacket(pkg,defalutVec,cmpTime,s)
             if len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
@@ -158,11 +160,15 @@ def ipHandel(packet):
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if(ip_layer.dst.startswith("10.")):
+            packet.src = myIp4
             messageQueue.append(packet)
+            print(f"Destination IP: {ip_layer.dst}")
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if(ip_layer.dst.startswith("10:")):
+            packet.dst = myIp4
             messageQueue.append(packet)
+            print(f"Destination IP: {ip_layer.dst}")
 
 def startIpHandel(*_,**__):
     global running
