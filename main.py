@@ -62,6 +62,13 @@ timeToDeath = config_data.get("ttd") or 10
 
 def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
     del(pkg.chksum)
+    # limit the number of hops!
+    if(pkg.version == 4):
+        pkg.ttl -= 1
+        if(pkg.ttl <= 0):return
+    elif(pkg.version == 6):
+        pkg.hlim -= 1
+        if(pkg.hlim <= 0):return
     # find best connection...
     (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
     (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
@@ -95,12 +102,13 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
             
 
 def readDataFromSocket(socket):
-    #return socket.recv(65535)
     data = b''
     buffer = b''
     try:
+        return socket.recv(65535)
         while True:
             data = socket.recv(4096)
+            print(f"(2025-10-07T10:32:10) {data}")
             if not data:break
             buffer += data
     except Exception as error: 
@@ -110,10 +118,12 @@ def readDataFromSocket(socket):
         error.__traceback__.tb_lineno,  # 2
         error
         )
+    print(f"(2025-10-07T10:33:36) {data}")
     if data: print('received', buffer)
     else:
         print('disconnected')
         connections.remove(socket)
+        socket.close()
     return buffer
 
 def blueHandel(sock,connections):
@@ -121,7 +131,7 @@ def blueHandel(sock,connections):
     packetBase4 = scapy.all.IP()
     packetBase6 = scapy.all.IPv6()
     try:
-        while running:
+        while True:
             # sleeping
             time.sleep(0.1)
             # important values
@@ -146,11 +156,11 @@ def blueHandel(sock,connections):
                     pkg = packetBase6.__class__(data)
                 else:print(data);continue
                 if(pkg.dst == myIp4 and pkg.dst != myIp6):
-                    print(f"getting IP: {pkg.dst}")
+                    print(f"getting IP: {pkg.dst} from {pkg.src}")
                     # send to self
-                    del(pkg.chksum)
                     # funny stuff
                     pkg.dst = ["127.0.0.1","::1"][(pkg.version - 4) // 2]
+                    del(pkg.chksum)
                     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
                     #outing = pkg.do_build()
                     scapy.all.send(pkg)
@@ -161,11 +171,13 @@ def blueHandel(sock,connections):
                 pkg = messageQueue.pop(0)
                 print(f"Destination IP: {pkg.dst}")
                 trySendPacket(pkg,defaultVec,cmpTime)
+            if(not running):
+                break
 
         # end of while
     except Exception as error:
         # error out
-        running = False
+        while running:running = False;time.sleep(0.1)
         print(
         type(error).__name__,          # TypeError
         __file__,                  # /tmp/example.py
@@ -196,7 +208,7 @@ blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 blueThread.start()
 #sniffThread.start()
 scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
-running = False
+while running:running = False;time.sleep(0.1)
 blueThread.join()
 #sniffThread.join()
 #rawSock.send()
