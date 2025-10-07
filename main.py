@@ -95,7 +95,7 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
             
 
 def readDataFromSocket(socket):
-    return socket.recv(65535)
+    #return socket.recv(65535)
     data = b''
     buffer = b''
     try:
@@ -129,7 +129,7 @@ def blueHandel(sock,connections):
             defaultVec = (None,-timeToDeath,999)
             # what to read
             readable, writeable, exceptional = select.select(
-                    connections,[],connections,1)
+                    connections,[],[],1)
             for s in readable:
                 if s is blueServer:
                     connection, client_address = blueServer.accept()
@@ -175,35 +175,30 @@ def blueHandel(sock,connections):
 
 
 def ipHandel(packet):
+    # TODO make this dynamic!
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if(ip_layer.dst.startswith("10.")):
-            packet.src = myIp4
+            print(ip_layer)
+            ip_layer.src = myIp4
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if(ip_layer.dst.startswith("10:")):
-            packet.dst = myIp4
+            ip_layer.src = myIp6
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
 
-def startIpHandel(*_,**__):
-    global running
-    scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
-    running = False
-
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
-sniffThread = threading.Thread(target=startIpHandel, args=(1,))
+#sniffThread = threading.Thread(target=startIpHandel, args=(1,))
 blueThread.start()
-sniffThread.start()
-try:
-    while running: time.sleep(1)
-except:pass
+#sniffThread.start()
+scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
 running = False
 blueThread.join()
-sniffThread.join()
+#sniffThread.join()
 #rawSock.send()
 
 blueServer.close()
