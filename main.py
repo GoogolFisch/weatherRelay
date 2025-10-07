@@ -6,6 +6,7 @@ import select
 import time
 import threading
 import random
+import socket
 
 
 CONFIG_FILE = "./config.json"
@@ -46,6 +47,15 @@ if(config_data["client"]):
         connections.append(sock)
 
 # listening (socket)
+socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+socketing.connect(("99.99.99.99",64444))
+hereIp4 = socketing.getsockname()[0]
+socketing.close()
+socketing = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
+socketing.connect(("2001::1",64444))
+hereIp6 = socketing.getsockname()[0]
+socketing.close()
+print(f"I am: {hereIp4} , {hereIp6} !")
 
 messageQueue = []
 redirectMap = {} # this will be generated
@@ -60,10 +70,11 @@ print(f"currently using: {myIp4} , {myIp6} as addresses!")
 running = True
 timeToDeath = config_data.get("ttd") or 10
 
+
 def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
-    del(pkg.chksum)
     # limit the number of hops!
     if(pkg.version == 4):
+        del(pkg.chksum)
         pkg.ttl -= 1
         if(pkg.ttl <= 0):return
     elif(pkg.version == 6):
@@ -130,6 +141,10 @@ def blueHandel(sock,connections):
     global running
     packetBase4 = scapy.all.IP()
     packetBase6 = scapy.all.IPv6()
+    sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_TCP)
+    sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_TCP)
+    sendMeSock4.connect((hereIp4,0))
+    sendMeSock6.connect((hereIp6,0))
     try:
         while True:
             # sleeping
@@ -159,10 +174,14 @@ def blueHandel(sock,connections):
                     print(f"getting IP: {pkg.dst} from {pkg.src}")
                     # send to self
                     # funny stuff
-                    pkg.dst = ["127.0.0.1","::1"][(pkg.version - 4) // 2]
-                    del(pkg.chksum)
+                    pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
                     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
                     #outing = pkg.do_build()
+                    """if(pkg.version == 4):
+                        sendMeSock4.send(pkg.do_build())
+                    if(pkg.version == 6):
+                        sendMeSock6.send(pkg.do_build(),pkg.dst)
+                    #XXX """
                     scapy.all.send(pkg)
                     continue
                 print(f"passing IP: {pkg.dst}")
@@ -184,6 +203,8 @@ def blueHandel(sock,connections):
         error.__traceback__.tb_lineno,  # 2
         error
         )
+    sendMeSock4.close()
+    sendMeSock6.close()
 
 
 def ipHandel(packet):
