@@ -62,6 +62,10 @@ redirectMap = {} # this will be generated
 # TODO add more features here
 myIp4 = config_data.get("ip4") or "10.x.x.x"
 myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
+broadIp4 = (config_data.get("ip4") or "10.x.x.x").replace("x","255")
+broadIp6 = (config_data.get("ip6") or "10:x:x:x:x:x:x:x").replace("x","ffff")
+beginnIp4 = myIp4[:myIp4.index("x")]
+beginnIp6 = myIp6[:myIp6.index("x")]
 while("x" in myIp4):
     myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
 while("x" in myIp6):
@@ -110,7 +114,7 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
         try:
             cnn.send(pkg.do_build())
         except:pass
-            
+
 
 def readDataFromSocket(socket):
     data = b''
@@ -137,14 +141,27 @@ def readDataFromSocket(socket):
         socket.close()
     return buffer
 
+sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
+sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
+#sendMeSock4.connect((hereIp4,0))
+#sendMeSock6.connect((hereIp6,0))
+def sendMeDown(pkg):
+    print(f"getting IP: {pkg.dst} from {pkg.src}")
+    # send to self
+    # funny stuff
+    pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
+    #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
+    #outing = pkg.do_build()
+    if(pkg.version == 4):
+        sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",0))
+    if(pkg.version == 6):
+        sendMeSock6.sendto(pkg.do_build(),("::1",0))
+    #scapy.all.send(pkg)
+
 def blueHandel(sock,connections):
     global running
     packetBase4 = scapy.all.IP()
     packetBase6 = scapy.all.IPv6()
-    sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_TCP)
-    sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_TCP)
-    sendMeSock4.connect((hereIp4,0))
-    sendMeSock6.connect((hereIp6,0))
     try:
         while True:
             # sleeping
@@ -170,20 +187,12 @@ def blueHandel(sock,connections):
                 elif(data[0] >> 4 == 6):
                     pkg = packetBase6.__class__(data)
                 else:print(data);continue
-                if(pkg.dst == myIp4 and pkg.dst != myIp6):
-                    print(f"getting IP: {pkg.dst} from {pkg.src}")
-                    # send to self
-                    # funny stuff
-                    pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
-                    #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
-                    #outing = pkg.do_build()
-                    """if(pkg.version == 4):
-                        sendMeSock4.send(pkg.do_build())
-                    if(pkg.version == 6):
-                        sendMeSock6.send(pkg.do_build(),pkg.dst)
+                if(pkg.dst == myIp4 or pkg.dst == myIp6):
+                    sendMeDown(pkg)
                     #XXX """
-                    scapy.all.send(pkg)
                     continue
+                if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
+                    sendMeDown(pkg)
                 print(f"passing IP: {pkg.dst}")
                 trySendPacket(pkg,defaultVec,cmpTime,s)
             if len(messageQueue) > 0:
@@ -211,14 +220,14 @@ def ipHandel(packet):
     # TODO make this dynamic!
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
-        if(ip_layer.dst.startswith("10.")):
+        if(ip_layer.dst.startswith(beginnIp4)):
             print(ip_layer)
             ip_layer.src = myIp4
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
-        if(ip_layer.dst.startswith("10:")):
+        if(ip_layer.dst.startswith(beginnIp6)):
             ip_layer.src = myIp6
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
@@ -237,3 +246,5 @@ blueThread.join()
 blueServer.close()
 for con in connections:
     con.close()
+
+

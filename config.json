@@ -1,5 +1,5 @@
 {
-	"ip4":"10.x.x.x",
+	"ip4":"127.127.x.x",
 	"ip6":"10:x:x:x:x:x:x:x",
 	"ttd":10,
 	"server":true,
