@@ -7,13 +7,45 @@ import time
 import threading
 import random
 import socket
+import os
 
 
 CONFIG_FILE = "./config.json"
 with open(CONFIG_FILE,"r") as fptr:
     config_data = json.load(fptr)
 
-# maybe add plugins?
+# listening (socket)
+socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+socketing.connect(("99.99.99.99",64444))
+hereIp4 = socketing.getsockname()[0]
+socketing.close()
+socketing = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
+socketing.connect(("2001::1",64444))
+hereIp6 = socketing.getsockname()[0]
+socketing.close()
+print(f"I am: {hereIp4} , {hereIp6} !")
+
+messageQueue = []
+redirectMap = {} # this will be generated
+# TODO add more features here
+myIp4 = config_data.get("ip4") or "10.x.x.x"
+myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
+broadIp4 = (config_data.get("ip4") or "10.x.x.x").replace("x","255")
+broadIp6 = (config_data.get("ip6") or "10:x:x:x:x:x:x:x").replace("x","ffff")
+beginnIp4 = myIp4[:myIp4.index("x")]
+beginnIp6 = myIp6[:myIp6.index("x")]
+while("x" in myIp4):
+    myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
+while("x" in myIp6):
+    myIp6 = myIp6.replace("x",hex(random.randrange(0xffff))[2:],1)
+print(f"currently using: {myIp4} , {myIp6} as addresses!")
+running = True
+timeToDeath = config_data.get("ttd") or 10
+
+if(config_data["doSetup"]):
+    os.system('hciconfig hci0 piscan')
+    #os.system('ip route add 172.16.0.0/16 via 172.17.0.1')
+    #os.system('arp -s 172.17.0.1 01:02:03:04:05:06')
 
 # starting main part
 connections = []
@@ -45,34 +77,6 @@ if(config_data["client"]):
         sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         sock.connect((host, port))
         connections.append(sock)
-
-# listening (socket)
-socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-socketing.connect(("99.99.99.99",64444))
-hereIp4 = socketing.getsockname()[0]
-socketing.close()
-socketing = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
-socketing.connect(("2001::1",64444))
-hereIp6 = socketing.getsockname()[0]
-socketing.close()
-print(f"I am: {hereIp4} , {hereIp6} !")
-
-messageQueue = []
-redirectMap = {} # this will be generated
-# TODO add more features here
-myIp4 = config_data.get("ip4") or "10.x.x.x"
-myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
-broadIp4 = (config_data.get("ip4") or "10.x.x.x").replace("x","255")
-broadIp6 = (config_data.get("ip6") or "10:x:x:x:x:x:x:x").replace("x","ffff")
-beginnIp4 = myIp4[:myIp4.index("x")]
-beginnIp6 = myIp6[:myIp6.index("x")]
-while("x" in myIp4):
-    myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
-while("x" in myIp6):
-    myIp6 = myIp6.replace("x",hex(random.randrange(0xffff))[2:],1)
-print(f"currently using: {myIp4} , {myIp6} as addresses!")
-running = True
-timeToDeath = config_data.get("ttd") or 10
 
 
 def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
@@ -240,6 +244,9 @@ blueThread.start()
 scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
 while running:running = False;time.sleep(0.1)
 blueThread.join()
+if(config_data["doSetup"]):
+    os.system('ip route del 172.16.0.0/16')# via 172.17.0.1')
+    os.system('arp -d 172.17.0.1')
 #sniffThread.join()
 #rawSock.send()
 
