@@ -141,17 +141,13 @@ def trySendPacket(pkg,dstSock=None):
             cnn.send(pkg.do_build())
         except:pass
 
+socketDataOverFlow = {}
 
 def readDataFromSocket(socket):
-    data = b''
-    buffer = b''
+    data = socketDataOverFlow.get(socket)
+    data = data or b''
     try:
-        return socket.recv(65535)
-        while True:
-            data = socket.recv(4096)
-            print(f"(2025-10-07T10:32:10) {data}")
-            if not data:break
-            buffer += data
+        return data + socket.recv(65535 - len(data))
     except Exception as error: 
         print(
         type(error).__name__,          # TypeError
@@ -159,13 +155,10 @@ def readDataFromSocket(socket):
         error.__traceback__.tb_lineno,  # 2
         error
         )
-    print(f"(2025-10-07T10:33:36) {data}")
-    if data: print('received', buffer)
-    else:
-        print('disconnected')
-        connections.remove(socket)
-        socket.close()
-    return buffer
+    print('disconnected')
+    connections.remove(socket)
+    socket.close()
+    return b''
 
 sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
@@ -193,7 +186,7 @@ def blueHandel(sock,connections):
             # sleeping
             time.sleep(0.1)
             # important values
-            cmpTime = time.process_time()
+            cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
             # what to read
             readable, writeable, exceptional = select.select(
@@ -210,8 +203,12 @@ def blueHandel(sock,connections):
                     continue
                 if(data[0] >> 4 == 4):
                     pkg = packetBase4.__class__(data)
+                    if(len(data) > pkg.len):
+                        socketDataOverFlow[s] = data[pkg.len:]
                 elif(data[0] >> 4 == 6):
                     pkg = packetBase6.__class__(data)
+                    if(len(data) > pkg.plen + 40):
+                        socketDataOverFlow[s] = data[pkg.plen + 40:]
                 else:print(data);continue
                 if(pkg.dst == myIp4 or pkg.dst == myIp6):
                     sendMeDown(pkg)
