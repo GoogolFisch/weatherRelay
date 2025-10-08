@@ -147,7 +147,10 @@ def readDataFromSocket(socket):
     data = socketDataOverFlow.get(socket)
     data = data or b''
     try:
-        return data + socket.recv(65535 - len(data))
+        if(data):
+            outl = select.select([socket],[],[],0)
+            if(len(outl) == 0):return data
+        return data + socket.recv(66000 - len(data))
     except Exception as error: 
         print(
         type(error).__name__,          # TypeError
@@ -165,6 +168,7 @@ sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
 #sendMeSock4.connect((hereIp4,0))
 #sendMeSock6.connect((hereIp6,0))
 def sendMeDown(pkg):
+    pkg = pkg.copy()
     print(f"getting IP: {pkg.dst} from {pkg.src}")
     # send to self
     # funny stuff
@@ -182,19 +186,15 @@ def blueHandel(sock,connections):
     packetBase4 = scapy.all.IP()
     packetBase6 = scapy.all.IPv6()
     try:
-        doLoopSleep = True
         while True:
             # sleeping
-            if(doLoopSleep):
-                time.sleep(0.1)
-            else:print("No sleep!")
-            doLoopSleep = True
+            time.sleep(0.1)
             # important values
             cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
             # what to read
             readable, writeable, exceptional = select.select(
-                    connections,[],[],1)
+                    connections,[],[],0.1)
             for s in readable:
                 if s is blueServer:
                     connection, client_address = blueServer.accept()
@@ -202,33 +202,44 @@ def blueHandel(sock,connections):
                     connection.setblocking(0)
                     connections.append(connection)
                     continue
-                data = readDataFromSocket(s)
-                if(len(data) <= 0):
-                    continue
-                if(data[0] >> 4 == 4):
-                    pkg = packetBase4.__class__(data)
-                    if(len(data) > pkg.len):
-                        socketDataOverFlow[s] = data[pkg.len:]
-                        doLoopSleep = False
-                elif(data[0] >> 4 == 6):
-                    pkg = packetBase6.__class__(data)
-                    if(len(data) > pkg.plen + 40):
-                        socketDataOverFlow[s] = data[pkg.plen + 40:]
-                        doLoopSleep = False
-                else:print(data);continue
-                if(pkg.dst == myIp4 or pkg.dst == myIp6):
-                    sendMeDown(pkg)
-                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
-                    #XXX """
-                    continue
-                if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
-                    sendMeDown(pkg)
-                    dstSock = None # broadcast
-                else:
-                    # find best connection...
-                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
-                print(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
-                trySendPacket(pkg,dstSock)
+                doContinueRead = True
+                while doContinueRead:
+                    doContinueRead = False
+                    data = readDataFromSocket(s)
+                    if(len(data) <= 0):
+                        continue
+                    if(data[0] >> 4 == 4):
+                        pkg = packetBase4.__class__(data)
+                        if(len(data) > pkg.len):
+                            socketDataOverFlow[s] = data[pkg.len:]
+                            doContinueRead = True
+                        elif(len(data) < pkg.len):
+                            print("NONNON")
+                            socketDataOverFlow[s] = data
+                            continue
+                    elif(data[0] >> 4 == 6):
+                        pkg = packetBase6.__class__(data)
+                        if(len(data) > pkg.plen + 40):
+                            socketDataOverFlow[s] = data[pkg.plen + 40:]
+                            doContinueRead = True
+                        elif(len(data) < pkg.plen + 40):
+                            print("NONNON")
+                            socketDataOverFlow[s] = data
+                            continue
+                    else:print(data);continue
+                    if(pkg.dst == myIp4 or pkg.dst == myIp6):
+                        sendMeDown(pkg)
+                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
+                        #XXX """
+                        continue
+                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
+                        sendMeDown(pkg)
+                        dstSock = None # broadcast
+                    else:
+                        # find best connection...
+                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
+                    print(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
+                    trySendPacket(pkg,dstSock)
             while len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
                 print(f"Destination IP: {pkg.dst}")
