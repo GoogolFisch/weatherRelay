@@ -148,7 +148,7 @@ def readDataFromSocket(socket):
     data = data or b''
     try:
         if(data):
-            outl = select.select([socket],[],[],0)
+            outl,_1,_2 = select.select([socket],[],[],0)
             if(len(outl) == 0):return data
         return data + socket.recv(66000 - len(data))
     except Exception as error: 
