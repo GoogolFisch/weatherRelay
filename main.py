@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import bluetooth
 import scapy.all
@@ -16,12 +17,18 @@ with open(CONFIG_FILE,"r") as fptr:
 
 # listening (socket)
 socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-socketing.connect(("99.99.99.99",64444))
-hereIp4 = socketing.getsockname()[0]
+hereIp4 = "127.0.0.1"
+hereIp6 = "::1"
+try:
+    socketing.connect(("99.99.99.99",64444))
+    hereIp4 = socketing.getsockname()[0]
+except:pass
 socketing.close()
 socketing = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
-socketing.connect(("2001::1",64444))
-hereIp6 = socketing.getsockname()[0]
+try:
+    socketing.connect(("2001::1",64444))
+    hereIp6 = socketing.getsockname()[0]
+except:pass
 socketing.close()
 print(f"I am: {hereIp4} , {hereIp6} !")
 
@@ -43,9 +50,20 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 
 if(config_data["doSetup"]):
-    os.system('hciconfig hci0 piscan')
+    # adding virtual interface ...
+    # https://linuxconfig.org/configuring-virtual-network-interfaces-in-linux
+    os.system('modprobe dummy')
+    os.system('ip link add veth0 type dummy') # void ethernet
+    os.system('ip link show veth0') # testing if veth0 exists
+    os.system('ifconfig veth0 hw ether 11:22:33:44:55:66') # testing if veth0 exists
+    os.system('ip addr add 172.16.0.0/12 brd + dev veth0 label veth0:0') # testing if veth0 exists
+    os.system('ip addr add 10::/16 dev veth0 label veth0:0') # testing if veth0 exists
+    os.system('ip link set dev veth0 up') # starting the interface
+
     #os.system('ip route add 172.16.0.0/16 via 172.17.0.1')
     #os.system('arp -s 172.17.0.1 01:02:03:04:05:06')
+    # bluetooth setup
+    os.system('hciconfig hci0 piscan')
 
 # starting main part
 connections = []
@@ -78,17 +96,7 @@ if(config_data["client"]):
         sock.connect((host, port))
         connections.append(sock)
 
-
-def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
-    # limit the number of hops!
-    if(pkg.version == 4):
-        del(pkg.chksum)
-        pkg.ttl -= 1
-        if(pkg.ttl <= 0):return
-    elif(pkg.version == 6):
-        pkg.hlim -= 1
-        if(pkg.hlim <= 0):return
-    # find best connection...
+def bindIpSocket(pkg,defaultVec,cmpTime,sock = None) -> socket.socket:
     (dstSock,dstTime,dstHops) = redirectMap.get(pkg.dst) or defaultVec
     (srcSock,srcTime,srcHops) = redirectMap.get(pkg.src) or defaultVec
     # clean-up
@@ -100,11 +108,24 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
     if(srcHops >= pkg.hops() and sock is not None):
         # renew the src
         redirectMap[pkg.src] = (sock,cmpTime,pkg.hops())
+        print(f"{pkg.src} -> {(sock,cmpTime,pkg.hops())}")
     if(dstTime < cmpTime - timeToDeath and dstSock is not None):
         # if too old!
         redirectMap.pop(pkg.dst)
         dstSock = None
+    return dstSock
+
+def trySendPacket(pkg,dstSock=None):
+    # limit the number of hops!
+    if(pkg.version == 4):
+        del(pkg.chksum)
+        pkg.ttl -= 1
+        if(pkg.ttl <= 0):return
+    elif(pkg.version == 6):
+        pkg.hlim -= 1
+        if(pkg.hlim <= 0):return
     # send message
+    print(f"{pkg.dst} -> {dstSock}")
     if(dstSock is not None):
         # "best" path
         try:
@@ -115,6 +136,7 @@ def trySendPacket(pkg,defaultVec,cmpTime,sock=None):
             redirectMap.pop(pkg.dst)
     for cnn in connections:
         if(cnn is blueServer):continue
+        if(cnn is sock):continue
         try:
             cnn.send(pkg.do_build())
         except:pass
@@ -193,16 +215,23 @@ def blueHandel(sock,connections):
                 else:print(data);continue
                 if(pkg.dst == myIp4 or pkg.dst == myIp6):
                     sendMeDown(pkg)
+                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     #XXX """
                     continue
                 if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
                     sendMeDown(pkg)
-                print(f"passing IP: {pkg.dst}")
-                trySendPacket(pkg,defaultVec,cmpTime,s)
-            if len(messageQueue) > 0:
+                    dstSock = None # broadcast
+                else:
+                    # find best connection...
+                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
+                print(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
+                trySendPacket(pkg,dstSock)
+            while len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
                 print(f"Destination IP: {pkg.dst}")
-                trySendPacket(pkg,defaultVec,cmpTime)
+                # find best connection...
+                dstSock = bindIpSocket(pkg,defaultVec,cmpTime)
+                trySendPacket(pkg,dstSock)
             if(not running):
                 break
 
@@ -241,12 +270,16 @@ blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 #sniffThread = threading.Thread(target=startIpHandel, args=(1,))
 blueThread.start()
 #sniffThread.start()
-scapy.all.sniff(prn=ipHandel, stop_filter=lambda p: not running)
+scapy.all.sniff(iface="veth0",prn=ipHandel, stop_filter=lambda p: not running)
 while running:running = False;time.sleep(0.1)
 blueThread.join()
 if(config_data["doSetup"]):
-    os.system('ip route del 172.16.0.0/16')# via 172.17.0.1')
-    os.system('arp -d 172.17.0.1')
+    os.system('ip addr del 172.16.0.0/16 brd + dev veth0 label eth0:0')
+    os.system('ip addr del 10::/10 dev veth0 label eth0:0')
+    os.system('ip link delete veth0 type dummy')
+    os.system('rmmod dummy')
+    #os.system('ip route del 172.16.0.0/16')# via 172.17.0.1')
+    #os.system('arp -d 172.17.0.1')
 #sniffThread.join()
 #rawSock.send()
 
