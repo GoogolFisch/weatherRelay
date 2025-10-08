@@ -166,6 +166,8 @@ def readDataFromSocket(socket):
 
 sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
+sendMeSock4.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+sendMeSock6.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 #sendMeSock4.connect((hereIp4,0))
 #sendMeSock6.connect((hereIp6,0))
 def sendMeDown(pkg):
@@ -185,6 +187,7 @@ def sendMeDown(pkg):
         udpp = scapy.all.UDP(pkg.payload)
         port = udpp.dport
     except:pass
+    port = 0
     if(pkg.version == 4):
         sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
     if(pkg.version == 6):
