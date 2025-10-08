@@ -167,7 +167,7 @@ def readDataFromSocket(socket):
 sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock4.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-sendMeSock6.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+sendMeSock6.setsockopt(socket.IPPROTO_IPV6, socket.IP_HDRINCL, 1)
 #sendMeSock4.connect((hereIp4,0))
 #sendMeSock6.connect((hereIp6,0))
 def sendMeDown(pkg):
