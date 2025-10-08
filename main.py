@@ -149,8 +149,9 @@ def readDataFromSocket(socket):
     try:
         if(data):
             outl,_1,_2 = select.select([socket],[],[],0)
+            print(outl)
             if(len(outl) == 0):return data
-        return data + socket.recv(66000 - len(data))
+        return data + socket.recv(66000)
     except Exception as error: 
         print(
         type(error).__name__,          # TypeError
@@ -183,8 +184,6 @@ def sendMeDown(pkg):
 
 def blueHandel(sock,connections):
     global running
-    packetBase4 = scapy.all.IP()
-    packetBase6 = scapy.all.IPv6()
     try:
         while True:
             # sleeping
@@ -202,31 +201,26 @@ def blueHandel(sock,connections):
                     connection.setblocking(0)
                     connections.append(connection)
                     continue
-                doContinueRead = True
-                while doContinueRead:
-                    doContinueRead = False
-                    data = readDataFromSocket(s)
-                    if(len(data) <= 0):
-                        continue
+                index = 0
+                data = readDataFromSocket(s)
+                while True:
+                    if(len(data) <= index):
+                        break
                     if(data[0] >> 4 == 4):
-                        pkg = packetBase4.__class__(data)
-                        if(len(data) > pkg.len):
-                            socketDataOverFlow[s] = data[pkg.len:]
-                            doContinueRead = True
-                        elif(len(data) < pkg.len):
+                        pkg = scapy.all.IP(data[index:])
+                        if(len(data) < pkg.len + index):
                             print("NONNON")
-                            socketDataOverFlow[s] = data
-                            continue
+                            socketDataOverFlow[s] = data[index:]
+                            break
+                        index += pkg.len
                     elif(data[0] >> 4 == 6):
-                        pkg = packetBase6.__class__(data)
-                        if(len(data) > pkg.plen + 40):
-                            socketDataOverFlow[s] = data[pkg.plen + 40:]
-                            doContinueRead = True
-                        elif(len(data) < pkg.plen + 40):
+                        pkg = scapy.all.IPv6(data)
+                        if(len(data) < pkg.plen + 40 + index):
                             print("NONNON")
-                            socketDataOverFlow[s] = data
-                            continue
-                    else:print(data);continue
+                            socketDataOverFlow[s] = data[index:]
+                            break
+                        index += pkg.plen + 40
+                    else:print(data);break
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
                         sendMeDown(pkg)
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
@@ -268,7 +262,6 @@ def ipHandel(packet):
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if(ip_layer.dst.startswith(beginnIp4)):
-            print(ip_layer)
             ip_layer.src = myIp4
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
