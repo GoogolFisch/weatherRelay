@@ -182,9 +182,13 @@ def blueHandel(sock,connections):
     packetBase4 = scapy.all.IP()
     packetBase6 = scapy.all.IPv6()
     try:
+        doLoopSleep = True
         while True:
             # sleeping
-            time.sleep(0.1)
+            if(doLoopSleep):
+                time.sleep(0.1)
+            else:print("No sleep!")
+            doLoopSleep = True
             # important values
             cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
@@ -205,10 +209,12 @@ def blueHandel(sock,connections):
                     pkg = packetBase4.__class__(data)
                     if(len(data) > pkg.len):
                         socketDataOverFlow[s] = data[pkg.len:]
+                        doLoopSleep = False
                 elif(data[0] >> 4 == 6):
                     pkg = packetBase6.__class__(data)
                     if(len(data) > pkg.plen + 40):
                         socketDataOverFlow[s] = data[pkg.plen + 40:]
+                        doLoopSleep = False
                 else:print(data);continue
                 if(pkg.dst == myIp4 or pkg.dst == myIp6):
                     sendMeDown(pkg)
