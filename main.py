@@ -177,10 +177,14 @@ def sendMeDown(pkg):
     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
     #outing = pkg.do_build()
     port = 0
-    if scapy.all.TCP in pkg.haslayer:
-        port = pkg[scapy.all.TCP].dport
-    elif scapy.all.UDP in pkg.haslayer:
-        port = pkg[scapy.all.UDP].dport
+    try:
+        tcpp = scapy.all.TCP(pkg.payload)
+        port = tcpp.dport
+    except:pass
+    try:
+        udpp = scapy.all.UDP(pkg.payload)
+        port = udpp.dport
+    except:pass
     if(pkg.version == 4):
         sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
     if(pkg.version == 6):
