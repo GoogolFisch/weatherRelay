@@ -16,9 +16,10 @@ with open(CONFIG_FILE,"r") as fptr:
     config_data = json.load(fptr)
 
 # listening (socket)
-socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 hereIp4 = "127.0.0.1"
 hereIp6 = "::1"
+"""
+socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 try:
     socketing.connect(("99.99.99.99",64444))
     hereIp4 = socketing.getsockname()[0]
@@ -30,6 +31,7 @@ try:
     hereIp6 = socketing.getsockname()[0]
 except:pass
 socketing.close()
+#"""
 print(f"I am: {hereIp4} , {hereIp6} !")
 
 messageQueue = []
@@ -48,6 +50,7 @@ while("x" in myIp6):
 print(f"currently using: {myIp4} , {myIp6} as addresses!")
 running = True
 timeToDeath = config_data.get("ttd") or 10
+rescan_scale = config_data.get("rescan_scale") or 30
 
 if(config_data["doSetup"]):
     # adding virtual interface ...
@@ -115,7 +118,7 @@ def bindIpSocket(pkg,defaultVec,cmpTime,sock = None) -> socket.socket:
         dstSock = None
     return dstSock
 
-def trySendPacket(pkg,dstSock=None):
+def trySendPacket(pkg,dstSock=None,sock=None):
     # limit the number of hops!
     if(pkg.version == 4):
         del(pkg.chksum)
@@ -178,35 +181,39 @@ def sendMeDown(pkg):
     pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
     #outing = pkg.do_build()
-    port = 0
-    try:
+    """try:
         tcpp = scapy.all.TCP(pkg.payload)
         port = tcpp.dport
     except:pass
     try:
         udpp = scapy.all.UDP(pkg.payload)
         port = udpp.dport
-    except:pass
+    except:pass # """
     port = 0
     if(pkg.version == 4):
         sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
     if(pkg.version == 6):
         sendMeSock6.sendto(pkg.do_build(),("::1",port))
-    #scapy.all.send(pkg)
+    """
+    scapy.all.send(pkg)
+    # """
 
 def blueHandel(sock,connections):
     global running
     try:
+        timeToRescan = time.time()
         while True:
             # sleeping
             time.sleep(0.1)
             # important values
             cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
+            #sendDownPkgs = []
             # what to read
             readable, writeable, exceptional = select.select(
                     connections,[],[],0.1)
             for s in readable:
+                timeToRescan = cmpTime + rescan_scale * len(connections)
                 if s is blueServer:
                     connection, client_address = blueServer.accept()
                     print(f"{connection=} {client_address=}")
@@ -234,6 +241,7 @@ def blueHandel(sock,connections):
                         index += pkg.plen + 40
                     else:print(data);break
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
+                        #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                         #XXX """
@@ -245,7 +253,7 @@ def blueHandel(sock,connections):
                         # find best connection...
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     print(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
-                    trySendPacket(pkg,dstSock)
+                    trySendPacket(pkg,dstSock,s)
             while len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
                 print(f"Destination IP: {pkg.dst}")
