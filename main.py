@@ -135,12 +135,16 @@ socketDataOverFlow = {}
 
 def readDataFromSocket(socket):
     data = socketDataOverFlow.get(socket)
-    data = data or b''
+    if(data is not None):
+        socketDataOverFlow.pop(socket)
+    else:
+        data = b''
     try:
-        if(data):
+        """if(data):
             outl,_1,_2 = select.select([socket],[],[],0)
             print(outl)
             if(len(outl) == 0):return data
+        #"""
         return data + socket.recv(66000)
     except Exception as error: 
         print(
@@ -232,8 +236,9 @@ def blueHandel(sock,connections):
                         pkg = scapy.all.IP(data[index:])
                         # test for packt cutoff
                         if(len(data) < pkg.len + index):
-                            print("NONNON")
+                            print(f"NONNON {len(data)}<{pkg.len + index}:{pkg.len}")
                             socketDataOverFlow[s] = data[index:]
+                            print(data[index:])
                             break
                         index += pkg.len
                     elif(data[0] >> 4 == 6):
