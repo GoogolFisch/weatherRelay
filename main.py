@@ -171,7 +171,7 @@ def sendMeDown(_pkg):
     # send to self
     # funny stuff
     #pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
-    pkg.show2()
+    #pkg.show2()
     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
     #outing = pkg.do_build()
     """try:
