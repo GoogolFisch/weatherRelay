@@ -37,9 +37,9 @@ print(f"I am: {hereIp4} , {hereIp6} !")
 messageQueue = []
 redirectMap = {} # this will be generated
 # TODO add more features here
-myIp4 = config_data.get("ip4") or "10.x.x.x"
+myIp4 = config_data.get("ip4") or "172.16.x.x"
 myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
-broadIp4 = (config_data.get("ip4") or "10.x.x.x").replace("x","255")
+broadIp4 = (config_data.get("ip4") or "172.16.x.x").replace("x","255")
 broadIp6 = (config_data.get("ip6") or "10:x:x:x:x:x:x:x").replace("x","ffff")
 beginnIp4 = myIp4[:myIp4.index("x")]
 beginnIp6 = myIp6[:myIp6.index("x")]
@@ -59,8 +59,8 @@ if(config_data["doSetup"]):
     os.system('ip link add veth0 type dummy') # void ethernet
     os.system('ip link show veth0') # testing if veth0 exists
     os.system('ifconfig veth0 hw ether 11:22:33:44:55:66') # testing if veth0 exists
-    os.system('ip addr add 172.16.0.0/12 brd + dev veth0 label veth0:0') # testing if veth0 exists
-    os.system('ip addr add 10::/16 dev veth0 label veth0:0') # testing if veth0 exists
+    os.system(f'ip addr add {myIp4}/12 brd + dev veth0 label veth0:0') # testing if veth0 exists
+    os.system(f'ip addr add {myIp6}/16 dev veth0 label veth0:0') # testing if veth0 exists
     os.system('ip link set dev veth0 up') # starting the interface
 
     #os.system('ip route add 172.16.0.0/16 via 172.17.0.1')
@@ -162,7 +162,7 @@ sendMeSock6.setsockopt(socket.IPPROTO_IPV6, socket.IP_HDRINCL, 1)
 #sendMeSock6.connect((hereIp6,0))
 def sendMeDown(_pkg):
     pkg = _pkg.copy()
-    pkg.show2()
+    #pkg.show2()
     #pkg = scapy.all.IP(_pkg.build())
     if(pkg.version == 4): del(pkg.chksum)# = None
     print(f"getting IP: {pkg.dst} from {pkg.src}")
@@ -170,7 +170,7 @@ def sendMeDown(_pkg):
     except:pass
     # send to self
     # funny stuff
-    pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
+    #pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
     pkg.show2()
     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
     #outing = pkg.do_build()
