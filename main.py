@@ -319,7 +319,7 @@ def ipHandel(packet):
         ip_layer = packet[scapy.all.IP]
         if len(ip_layer.build()) != ip_layer.len:
             print(ip_layer)
-            break
+            return
         if(ip_layer.dst.startswith(beginnIp4)):
             ip_layer.src = myIp4 # is this even used
             messageQueue.append(ip_layer)
@@ -328,7 +328,7 @@ def ipHandel(packet):
         ip_layer = packet[scapy.all.IPv6]
         if len(ip_layer.build()) != ip_layer.plen:
             print(ip_layer)
-            break
+            return
         if(ip_layer.dst.startswith(beginnIp6)):
             ip_layer.src = myIp6
             messageQueue.append(ip_layer)
