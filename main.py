@@ -254,7 +254,6 @@ def blueHandel(sock,connections):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
-                        #XXX """
                         continue
                     if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
                         sendMeDown(pkg)
@@ -315,15 +314,21 @@ def blueHandel(sock,connections):
 
 
 def ipHandel(packet):
-    # TODO make this dynamic!
+    # TODO don't accept unfinished packets
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
+        if len(ip_layer.build()) != ip_layer.len:
+            print(ip_layer)
+            break
         if(ip_layer.dst.startswith(beginnIp4)):
-            ip_layer.src = myIp4
+            ip_layer.src = myIp4 # is this even used
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
+        if len(ip_layer.build()) != ip_layer.plen:
+            print(ip_layer)
+            break
         if(ip_layer.dst.startswith(beginnIp6)):
             ip_layer.src = myIp6
             messageQueue.append(ip_layer)
