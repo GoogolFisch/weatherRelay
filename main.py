@@ -100,10 +100,11 @@ def bindIpSocket(pkg,defaultVec,cmpTime,sock = None) -> socket.socket:
         # renew the src
         redirectMap[pkg.src] = (sock,cmpTime,pkg.hops())
         print(f"{pkg.src} -> {(sock,cmpTime,pkg.hops())}")
-    if(dstTime < cmpTime - timeToDeath and dstSock is not None):
+    """if(dstTime < cmpTime - timeToDeath and dstSock is not None):
         # if too old!
         redirectMap.pop(pkg.dst)
         dstSock = None
+    # """
     return dstSock
 
 def trySendPacket(pkg,dstSock=None,sock=None):
@@ -207,13 +208,20 @@ def sendMeDown(_pkg):
 def blueHandel(sock,connections):
     global running
     try:
+        iterator = redirectMap.items().__iter__()
         timeToRescan = 0
         while True:
-            # sleeping
-            time.sleep(0.1)
             # important values
             cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
+            # removing unimportant values in the redirectMap
+            try:
+                gotIp,(sock,tstTime,hops) = iterator.__next__()
+                if(tstTime < cmpTime - timeToDeath):
+                    # remove old entrys
+                    print(f"removing {gotIp} {redirectMap.pop(gotIp)}")
+            except (StopIteration,RuntimeError):
+                iterator = redirectMap.items().__iter__()
             #sendDownPkgs = []
             # what to read
             readable, writeable, exceptional = select.select(
@@ -318,21 +326,25 @@ def ipHandel(packet):
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if len(ip_layer.build()) != ip_layer.len:
-            print(ip_layer)
+            print("(2025-10-19T12:20:41)",ip_layer)
             return
-        if(ip_layer.dst.startswith(beginnIp4)):
+        """if(ip_layer.dst.startswith(beginnIp4)):
             ip_layer.src = myIp4 # is this even used
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
+        # """
+        messageQueue.append(ip_layer)
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if len(ip_layer.build()) != ip_layer.plen:
-            print(ip_layer)
+            print("(2025-10-19T12:20:50)",ip_layer)
             return
-        if(ip_layer.dst.startswith(beginnIp6)):
+        """if(ip_layer.dst.startswith(beginnIp6)):
             ip_layer.src = myIp6
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
+        # """
+        messageQueue.append(ip_layer)
 
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
