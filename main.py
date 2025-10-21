@@ -5,6 +5,7 @@ import scapy.all
 import json
 import select
 import time
+import datetime
 import threading
 import random
 import socket
@@ -16,41 +17,30 @@ with open(CONFIG_FILE,"r") as fptr:
     config_data = json.load(fptr)
 
 # listening (socket)
-hereIp4 = "127.0.0.1"
-hereIp6 = "::1"
-"""
-socketing = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-try:
-    socketing.connect(("99.99.99.99",64444))
-    hereIp4 = socketing.getsockname()[0]
-except:pass
-socketing.close()
-socketing = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
-try:
-    socketing.connect(("2001::1",64444))
-    hereIp6 = socketing.getsockname()[0]
-except:pass
-socketing.close()
-#"""
-print(f"I am: {hereIp4} , {hereIp6} !")
+
+def printing(string):
+    print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),string)
 
 messageQueue = []
 redirectMap = {} # this will be generated
 # TODO add more features here
-myIp4 = config_data.get("ip4") or "172.16.x.x"
-myIp6 = config_data.get("ip6") or "10:x:x:x:x:x:x:x"
+myIp4 = config_data.get("ip4") or "172.16.0.0/12"
+myIp6 = config_data.get("ip6") or "10::/16"
+valueIp4 = [int(x) for x in myIp4.split("/")[0].split(".")]
+valueIp6 = [int(x,16) for x in myIp6.split("/")[0].split(":")]
+sub4 = int(myIp4.split("/")[1])
+sub6 = int(myIp6.split("/")[1])
 broadIp4 = (config_data.get("ip4") or "172.16.x.x").replace("x","255")
 broadIp6 = (config_data.get("ip6") or "10:x:x:x:x:x:x:x").replace("x","ffff")
-beginnIp4 = myIp4[:myIp4.index("x")]
-beginnIp6 = myIp6[:myIp6.index("x")]
 while("x" in myIp4):
     myIp4 = myIp4.replace("x",str(random.randrange(256)),1)
 while("x" in myIp6):
     myIp6 = myIp6.replace("x",hex(random.randrange(0xffff))[2:],1)
-print(f"currently using: {myIp4} , {myIp6} as addresses!")
+printing(f"currently using: {myIp4} , {myIp6} as addresses!")
 running = True
 timeToDeath = config_data.get("ttd") or 10
 rescan_scale = config_data.get("rescan_scale") or 30
+runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
     # adding virtual interface ...
@@ -59,8 +49,9 @@ if(config_data["doSetup"]):
     os.system('ip link add veth0 type dummy') # void ethernet
     os.system('ip link show veth0') # testing if veth0 exists
     os.system('ifconfig veth0 hw ether 11:22:33:44:55:66') # testing if veth0 exists
-    os.system(f'ip addr add {myIp4}/12 brd + dev veth0 label veth0:0') # testing if veth0 exists
-    os.system(f'ip addr add {myIp6}/16 dev veth0 label veth0:0') # testing if veth0 exists
+    if(config_data["useIp4"]):
+        os.system(f'ip addr add {config_data['ip4']} brd + dev veth0 label veth0:0') # testing if veth0 exists
+    os.system(f'ip addr add {config_data['ip6']} dev veth0 label veth0:0') # testing if veth0 exists
     os.system('ip link set dev veth0 up') # starting the interface
 
     #os.system('ip route add 172.16.0.0/16 via 172.17.0.1')
@@ -73,7 +64,7 @@ connections = []
 blueServer = None
 uuid = config_data["uuid"]
 # setup server
-if(config_data["server"]):
+if(config_data["acceptConnections"]):
     blueServer = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
     blueServer.bind(("",bluetooth.PORT_ANY))
     blueServer.listen(8)
@@ -84,7 +75,7 @@ if(config_data["server"]):
                                 profiles=[bluetooth.SERIAL_PORT_PROFILE]
                                 )
     connections.append(blueServer)
-    print("started Server")
+    printing("started Server")
 
 
 def bindIpSocket(pkg,defaultVec,cmpTime,sock = None) -> socket.socket:
@@ -99,7 +90,7 @@ def bindIpSocket(pkg,defaultVec,cmpTime,sock = None) -> socket.socket:
     if(srcHops >= pkg.hops() and sock is not None):
         # renew the src
         redirectMap[pkg.src] = (sock,cmpTime,pkg.hops())
-        print(f"{pkg.src} -> {(sock,cmpTime,pkg.hops())}")
+        printing(f"{pkg.src} -> {(sock,cmpTime,pkg.hops())}")
     """if(dstTime < cmpTime - timeToDeath and dstSock is not None):
         # if too old!
         redirectMap.pop(pkg.dst)
@@ -116,7 +107,7 @@ def trySendPacket(pkg,dstSock=None,sock=None):
         pkg.hlim -= 1
         if(pkg.hlim <= 0):return
     # send message
-    print(f"{pkg.dst} -> {dstSock}")
+    printing(f"{pkg.dst} -> {dstSock}")
     if(dstSock is not None):
         # "best" path
         try:
@@ -148,13 +139,13 @@ def readDataFromSocket(socket):
         #"""
         return data + socket.recv(66000)
     except Exception as error: 
-        print(
+        printing(
         type(error).__name__,          # TypeError
         __file__,                  # /tmp/example.py
         error.__traceback__.tb_lineno,  # 2
         error
         )
-    print('disconnected')
+    printing('disconnected')
     connections.remove(socket)
     socket.close()
     return b''
@@ -163,19 +154,16 @@ sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock4.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 sendMeSock6.setsockopt(socket.IPPROTO_IPV6, socket.IP_HDRINCL, 1)
-#sendMeSock4.connect((hereIp4,0))
-#sendMeSock6.connect((hereIp6,0))
 def sendMeDown(_pkg):
     pkg = _pkg.copy()
     #pkg.show2()
     #pkg = scapy.all.IP(_pkg.build())
     if(pkg.version == 4): del(pkg.chksum)# = None
-    print(f"getting IP: {pkg.dst} from {pkg.src}")
+    printing(f"getting IP: {pkg.dst} from {pkg.src}")
     try: del(pkg.payload.chksum)# = None
     except:pass
     # send to self
     # funny stuff
-    #pkg.dst = [hereIp4,hereIp6][(pkg.version - 4) // 2]
     #pkg.show2()
     #pkg.dst = [myIp4,myIp6][(pkg.version - 4) / 2]
     #outing = pkg.do_build()
@@ -189,9 +177,11 @@ def sendMeDown(_pkg):
     except:pass # """
     port = 0
     if(pkg.version == 4):
-        sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
+        #sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
+        sendMeSock4.sendto(pkg.do_build(),(pkg.dst,port))
     if(pkg.version == 6):
-        sendMeSock6.sendto(pkg.do_build(),("::1",port))
+        #sendMeSock6.sendto(pkg.do_build(),("::1",port))
+        sendMeSock4.sendto(pkg.do_build(),(pkg.dst,port))
     """
     if(pkg.version == 4 and pkg.proto == 17):
         udpp = pkg.getlayer(scapy.all.UDP)
@@ -219,7 +209,7 @@ def blueHandel(sock,connections):
                 gotIp,(sock,tstTime,hops) = iterator.__next__()
                 if(tstTime < cmpTime - timeToDeath):
                     # remove old entrys
-                    print(f"removing {gotIp} {redirectMap.pop(gotIp)}")
+                    printing(f"removing {gotIp} {redirectMap.pop(gotIp)}")
             except (StopIteration,RuntimeError):
                 iterator = redirectMap.items().__iter__()
             #sendDownPkgs = []
@@ -230,7 +220,7 @@ def blueHandel(sock,connections):
                 if s is blueServer:
                     # allow others to connect
                     connection, client_address = blueServer.accept()
-                    print(f"{connection=} {client_address=}")
+                    printing(f"{connection=} {client_address=}")
                     connection.setblocking(0)
                     connections.append(connection)
                     continue
@@ -244,20 +234,20 @@ def blueHandel(sock,connections):
                         pkg = scapy.all.IP(data[index:])
                         # test for packt cutoff
                         if(len(data) < pkg.len + index):
-                            print(f"NONNON {len(data)}<{pkg.len + index}:{pkg.len}")
+                            printing(f"NONNON {len(data)}<{pkg.len + index}:{pkg.len}")
                             socketDataOverFlow[s] = data[index:]
-                            print(data[index:])
+                            printing(data[index:])
                             break
                         index += pkg.len
                     elif(data[0] >> 4 == 6):
                         pkg = scapy.all.IPv6(data)
                         # test for packt cutoff
                         if(len(data) < pkg.plen + 40 + index):
-                            print("NONNON")
+                            printing("NONNON")
                             socketDataOverFlow[s] = data[index:]
                             break
                         index += pkg.plen + 40
-                    else:print(data);break # if false!
+                    else:printing(data);break # if false!
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
@@ -269,49 +259,51 @@ def blueHandel(sock,connections):
                     else:
                         # find best connection...
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
-                    print(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
+                    printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
             while len(messageQueue) > 0:
                 pkg = messageQueue.pop(0)
-                print(f"Destination IP: {pkg.dst}")
+                printing(f"Destination IP: {pkg.dst}")
                 # find best connection...
                 dstSock = bindIpSocket(pkg,defaultVec,cmpTime)
                 trySendPacket(pkg,dstSock)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
             # auto connect to clients
-            if(config_data["client"] and cmpTime > timeToRescan):
-                print("Nothing happend for a very long time!")
-                print("Now searching for more clients!")
+            if(config_data["makeConnections"] and cmpTime > timeToRescan) or\
+                    (timeToRescan == 0 and config_data["makeFirstConnections"]):
+                printing("Nothing happend for a very long time!")
+                printing("Now searching for more clients!")
                 timeToRescan = cmpTime + rescan_scale * len(connections)
                 services = bluetooth.find_service(uuid=uuid,address=None)
-                print(services)
+                printing(services)
                 for serv in services:
                     port = serv["port"]
                     name = serv["name"]
                     host = serv["host"]
-                    print("Connecting to \"{}\" on {}".format(name, host))
+                    printing("Connecting to \"{}\" on {}".format(name, host))
                     sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
                     try:
                         sock.connect((host, port))
                         connections.append(sock)
                     except Exception as error:
                         # error out
-                        print(
+                        printing(
                         type(error).__name__,          # TypeError
                         __file__,                  # /tmp/example.py
                         error.__traceback__.tb_lineno,  # 2
                         error
                         )
-                print(f"Next in: {rescan_scale * len(connections)}s")
-            if(not running):
-                break
+                printing(f"Next in: {rescan_scale * len(connections)}s")
+            with runningMutex:
+                if(not running):break
 
         # end of while
     except Exception as error:
         # error out
-        while running:running = False;time.sleep(0.1)
-        print(
+        with runningMutex:
+            while running:running = False;time.sleep(0.1)
+        printing(
         type(error).__name__,          # TypeError
         __file__,                  # /tmp/example.py
         error.__traceback__.tb_lineno,  # 2
@@ -326,7 +318,7 @@ def ipHandel(packet):
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if len(ip_layer.build()) != ip_layer.len:
-            print("(2025-10-19T12:20:41)",ip_layer)
+            printing("(2025-10-19T12:20:41)",ip_layer)
             return
         """if(ip_layer.dst.startswith(beginnIp4)):
             ip_layer.src = myIp4 # is this even used
@@ -337,7 +329,7 @@ def ipHandel(packet):
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if len(ip_layer.build()) != ip_layer.plen:
-            print("(2025-10-19T12:20:50)",ip_layer)
+            printing("(2025-10-19T12:20:50)",ip_layer)
             return
         """if(ip_layer.dst.startswith(beginnIp6)):
             ip_layer.src = myIp6
@@ -352,7 +344,9 @@ blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
 blueThread.start()
 #sniffThread.start()
 scapy.all.sniff(iface="veth0",prn=ipHandel, stop_filter=lambda p: not running)
-while running:running = False;time.sleep(0.1) # set running false!
+with runningMutex:
+    while running:
+        running = False;time.sleep(0.1) # set running false!
 blueThread.join()
 if(config_data["doSetup"]):
     os.system('ip addr del 172.16.0.0/16 brd + dev veth0 label eth0:0')
