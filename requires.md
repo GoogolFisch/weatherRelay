@@ -74,3 +74,10 @@ and add an routing info with:
 
 This will trick your system into sending this data onto your private network,
 but also allow you to have more time, to get an response from the bluetooth network.
+
+## Optional
+Adding this to crontab
+
+`crontab -e` as root
+and insert
+`@reboot /home/pwd/start.sh`
