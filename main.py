@@ -32,7 +32,7 @@ for v in [int(x) for x in myIp4.split("/")[0].split(".")]:
     valueIp4 += v
 sub4 = 32 - int(myIp4.split("/")[1])
 broadValue = valueIp4 | (1 << sub4) - 1
-valueIp4 |= broadValue & random.randrange(0,1 << sub4)
+valueIp4 |= broadValue & random.randrange(0,(1 << sub4) - 1)
 myIp4 = []
 broadIp4 = []
 sub4 = 32 - sub4
@@ -58,7 +58,7 @@ for v in stringing6:
     valueIp6 += v
 sub6 = 128 - int(myIp6.split("/")[1])
 broadValue = valueIp6 | (1 << sub6) - 1
-valueIp6 |= broadValue & random.randrange(0,1 << sub6)
+valueIp6 |= broadValue & random.randrange(0,(1 << sub6) - 1)
 myIp6 = []
 broadIp6 = []
 sub6 = 128 - sub6
