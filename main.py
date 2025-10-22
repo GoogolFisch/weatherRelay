@@ -75,7 +75,7 @@ printing(f"lcl: {myIp4} , {myIp6}")
 printing(f"brd: {broadIp4} , {broadIp6}")
 running = True
 timeToDeath = config_data.get("ttd") or 10
-rescan_scale = config_data.get("rescan_scale") or 30
+rescan_scale = config_data.get("rescanScale") or 30
 runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
@@ -86,7 +86,7 @@ if(config_data["doSetup"]):
     os.system('ip link show veth0') # testing if veth0 exists
     os.system('ifconfig veth0 hw ether 11:22:33:44:55:66') # testing if veth0 exists
     if(config_data["useIp4"]):
-        os.system(f'ip addr add {myIp4}/{sub4} brd + dev veth0') # testing if veth0 exists
+        os.system(f'ip addr add {myIp4}/{sub4} brd - dev veth0') # testing if veth0 exists
     os.system(f'ip addr add {myIp6}/{sub6} dev veth0') # testing if veth0 exists
     os.system('ip link set dev veth0 up') # starting the interface
 
