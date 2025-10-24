@@ -5,11 +5,14 @@
 		"arp",
 		"hciconfig"
 	],
-	"ip4":"172.16.x.x",
-	"ip6":"10:0:x:x:x:x:x:x",
+	"useIp4":true,
+	"ip4":"172.16.0.0/12",
+	"ip6":"10::/16",
 	"ttd":60,
-	"rescan_scale":600,
-	"server":true,
-	"client":true,
+	"rescanScale":600,
+	"passMessages":true,
+	"acceptConnections":true,
+	"makeFirstConnections":true,
+	"makeConnections":true,
 	"uuid":"0ff13917-f5e3-4d37-bf91-5c51f6c81bb3"
 }
