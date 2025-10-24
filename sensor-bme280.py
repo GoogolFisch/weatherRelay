@@ -34,9 +34,9 @@ def readingSensor():
         while True:
             if(useNormal):
                 bme280_data = bme280.sample(bus,address)
+                timestamp = str(bme280_data.timestamp)
                 humidity  = bme280_data.humidity
                 pressure  = bme280_data.pressure
-                timestamp = bme280_data.timestamp
                 temperature = bme280_data.temperature
             else:
                 humidity  = random.uniform(0,100)
