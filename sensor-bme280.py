@@ -164,7 +164,6 @@ try:
                 continue
             try:data = data.decode("utf-8")
             except:continue
-            print(s,data)
             isHttp = data.startswith("GET")
             # do stuff for HTTP
             try:
