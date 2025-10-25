@@ -15,6 +15,8 @@ except:
     print("You do bad stuff!")
     useNormal = False
 
+dateFormat = '%Y-%m-%d_%H-%M-%S'
+
 # threading stuff
 running = True
 runningMutex = threading.Lock()
@@ -41,7 +43,7 @@ def readingSensor():
             else:
                 humidity  = random.uniform(0,100)
                 pressure  = random.uniform(900,1200)
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                timestamp = datetime.datetime.now().strftime(dateFormat)
                 temperature = random.uniform(19,25)
             #print(f"{timestamp}  {humidity}% rH  {pressure} hPa  {temperature} °C")
             with runningMutex:
@@ -76,22 +78,56 @@ backlogThread.start()
 
 def subsection(jdata):
     lowTime = 0
-    highTime = 1 << 64
+    highTime = 0
     count = 1
     adding = []
     try:
         if(jdata.get("lowGetTime")):
-            lowTime = datetime.strptime(jdata["lowGetTime"], "%Y-%m-%d %H:%M:%S")
+            lowTime = datetime.datetime.strptime(jdata["lowGetTime"], dateFormat)
         if(jdata.get("highGetTime")):
-            highTime = datetime.strptime(jdata["highGetTime"], "%Y-%m-%d %H:%M:%S")
+            highTime = datetime.datetime.strptime(jdata["highGetTime"], dateFormat)
         if(jdata.get("count")):
             count = int(jdata["count"])
+        print(f"{lowTime=} {highTime=} {count=}")
         for v in range(len(backlog)-1,-1,-1):
+            if(lowTime != 0 and lowTime > datetime.datetime.strptime(
+                backlog[v]["timestamp"],dateFormat)):
+               continue
+            if(highTime != 0 and highTime < datetime.datetime.strptime(
+                backlog[v]["timestamp"],dateFormat)):
+               continue
+
             adding.append(backlog[v])
             if(len(adding) >= count):
                 break
-    except:adding = [backlog[-1]]
+    except Exception as e:
+        print(e)
+        adding = [backlog[-1]]
     return adding
+
+def httpParser(data):
+    rpart = data.split(" ")[1].split("?")[-1]
+    build = {}
+    key = ""
+    value = ""
+    for chr in rpart:
+        if(chr == '='):
+            key = value
+            value = ""
+        elif(chr == '&'):
+            build[key] = value
+            try:build[key] = int(value)
+            except:pass
+            value = ""
+            key = ""
+        else:
+            value += chr
+    if(key != ""):
+        build[key] = value
+        try:build[key] = int(value)
+        except:pass
+
+    return build
 
 tcpServer = socket.socket(socket.AF_INET6,socket.SOCK_STREAM)
 udpServer = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
@@ -131,7 +167,11 @@ try:
             print(s,data)
             isHttp = data.startswith("GET")
             # do stuff for HTTP
-            try:jdata = json.loads(data.replace("'",'"'))
+            try:
+                if(not isHttp):
+                    jdata = json.loads(data.replace("'",'"'))
+                else:
+                    jdata = httpParser(data)
             except:jdata = {}
             scraped = json.dumps(subsection(jdata))
             try:
@@ -142,8 +182,9 @@ try:
                 clients.remove(s)
                 s.shutdown(socket.SHUT_RDWR)
                 continue
-            except BrokenPipeError:
-                clients.remove(s)
+            except (BrokenPipeError,OSError):
+                if(s in clients):
+                    clients.remove(s)
                 s.close()
                 continue
         with runningMutex:
