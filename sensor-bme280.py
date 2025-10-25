@@ -119,15 +119,29 @@ try:
                 scraped = json.dumps(subsection(jdata))
                 s.sendto(bytes(scraped,"utf-8"),addr)
                 continue
-            try:data = s.recv(128)
+            isHttp = False
+            try:
+                data = s.recv(2048)
             except BrokenPipeError:
                 clients.remove(s)
                 s.close()
                 continue
-            try:jdata = json.loads(data.decode("utf-8").replace("'",'"'))
+            try:data = data.decode("utf-8")
+            except:pass
+            print(s,data)
+            isHttp = data.startswith("GET")
+            # do stuff for HTTP
+            try:jdata = json.loads(data.replace("'",'"'))
             except:jdata = {}
             scraped = json.dumps(subsection(jdata))
-            try:s.send(bytes(scraped,"utf-8"))
+            try:
+                if(not isHttp):
+                    s.send(bytes(scraped,"utf-8"))
+                    continue
+                s.send(bytes("HTTP/1.1 200 \nContent-Type: application/json\n\n" + scraped,"utf-8"))
+                clients.remove(s)
+                s.shutdown(socket.SHUT_RDWR)
+                continue
             except BrokenPipeError:
                 clients.remove(s)
                 s.close()
@@ -147,6 +161,10 @@ except Exception as error:
     )
 with runningMutex:
     while(running):running = False
+backlogThread.join()
+print("close all connections!")
 for cl in clients:
     cl.close()
+tcpServer.close()
+udpServer.close()
 backlogThread.join()
