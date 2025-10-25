@@ -127,7 +127,7 @@ try:
                 s.close()
                 continue
             try:data = data.decode("utf-8")
-            except:pass
+            except:continue
             print(s,data)
             isHttp = data.startswith("GET")
             # do stuff for HTTP
