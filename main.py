@@ -22,7 +22,10 @@ def printing(string):
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),string)
 
 messageQueue = []
+# (ip->(socket,timestamp,hops))
 redirectMap = {} # this will be generated
+# (ip->timestamp)
+brdCastSleep = {} # this also
 
 #ipv4
 myIp4 = config_data.get("ip4") or "172.16.0.0/12"
@@ -32,7 +35,7 @@ for v in [int(x) for x in myIp4.split("/")[0].split(".")]:
     valueIp4 += v
 sub4 = 32 - int(myIp4.split("/")[1])
 broadValue = valueIp4 | (1 << sub4) - 1
-valueIp4 |= broadValue & random.randrange(0,(1 << sub4) - 1)
+valueIp4 |= broadValue & random.randrange(1,(1 << sub4) - 1)
 myIp4 = []
 broadIp4 = []
 sub4 = 32 - sub4
@@ -48,6 +51,8 @@ broadIp4 = ".".join(broadIp4)
 myIp6 = config_data.get("ip6") or "10::/16"
 valueIp6 = 0
 stringing6 = [(int(x,16) if x != "" else "") for x in myIp6.split("/")[0].split(":")]
+if(stringing6[0] == ""):stringing6[0] = 0 # catch :12::1
+if(stringing6[-1] == ""):stringing6[-1] = 0 # catch 10::1:
 index6 = stringing6.index("")
 stringing6.pop(index6)
 while stringing6.count("") > 0: stringing6.pop(stringing6.index(""))
@@ -58,7 +63,7 @@ for v in stringing6:
     valueIp6 += v
 sub6 = 128 - int(myIp6.split("/")[1])
 broadValue = valueIp6 | (1 << sub6) - 1
-valueIp6 |= broadValue & random.randrange(0,(1 << sub6) - 1)
+valueIp6 |= broadValue & random.randrange(1,(1 << sub6) - 1)
 myIp6 = []
 broadIp6 = []
 sub6 = 128 - sub6
@@ -75,6 +80,7 @@ printing(f"lcl: {myIp4} , {myIp6}")
 printing(f"brd: {broadIp4} , {broadIp6}")
 running = True
 timeToDeath = config_data.get("ttd") or 10
+brdSleepTime = config_data.get("brdSleep") or 5
 rescan_scale = config_data.get("rescanScale") or 30
 runningMutex = threading.Lock()
 
@@ -86,7 +92,7 @@ if(config_data["doSetup"]):
     os.system('ip link show veth0') # testing if veth0 exists
     os.system('ifconfig veth0 hw ether 11:22:33:44:55:66') # testing if veth0 exists
     if(config_data["useIp4"]):
-        os.system(f'ip addr add {myIp4}/{sub4} brd - dev veth0') # testing if veth0 exists
+        os.system(f'ip addr add {myIp4}/{sub4} brd + dev veth0') # testing if veth0 exists
     os.system(f'ip addr add {myIp6}/{sub6} dev veth0') # testing if veth0 exists
     os.system('ip link set dev veth0 up') # starting the interface
 
@@ -143,7 +149,7 @@ def trySendPacket(pkg,dstSock=None,sock=None):
         pkg.hlim -= 1
         if(pkg.hlim <= 0):return
     # send message
-    printing(f"{pkg.dst} -> {dstSock}")
+    printing(f"{pkg.dst} -> {dstSock} ... {pkg.src}")
     if(dstSock is not None):
         # "best" path
         try:
@@ -190,6 +196,8 @@ sendMeSock4 = socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock6 = socket.socket(socket.AF_INET6,socket.SOCK_RAW,socket.IPPROTO_RAW)
 sendMeSock4.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 sendMeSock6.setsockopt(socket.IPPROTO_IPV6, socket.IP_HDRINCL, 1)
+sendMeSock4.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+sendMeSock6.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
 def sendMeDown(_pkg):
     pkg = _pkg.copy()
     #pkg.show2()
@@ -212,12 +220,20 @@ def sendMeDown(_pkg):
         port = udpp.dport
     except:pass # """
     port = 0
-    if(pkg.version == 4):
-        #sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
-        sendMeSock4.sendto(pkg.do_build(),(pkg.dst,port))
-    if(pkg.version == 6):
-        #sendMeSock6.sendto(pkg.do_build(),("::1",port))
-        sendMeSock4.sendto(pkg.do_build(),(pkg.dst,port))
+    try:
+        if(pkg.version == 4):
+            #sendMeSock4.sendto(pkg.do_build(),("127.0.0.1",port))
+            sendMeSock4.sendto(pkg.do_build(),(pkg.dst,port))
+        if(pkg.version == 6):
+            #sendMeSock6.sendto(pkg.do_build(),("::1",port))
+            sendMeSock6.sendto(pkg.do_build(),(pkg.dst,port))
+    except Exception as error: 
+        print(
+        type(error).__name__,          # TypeError
+        __file__,                  # /tmp/example.py
+        error.__traceback__.tb_lineno,  # 2
+        error
+        )
     """
     if(pkg.version == 4 and pkg.proto == 17):
         udpp = pkg.getlayer(scapy.all.UDP)
@@ -240,8 +256,9 @@ def blueHandel(sock,connections):
             # important values
             cmpTime = time.time()
             defaultVec = (None,-timeToDeath,999)
-            # removing unimportant values in the redirectMap
             try:
+                # removing unimportant values in the redirectMap
+                # clean up
                 gotIp,(sock,tstTime,hops) = iterator.__next__()
                 if(tstTime < cmpTime - timeToDeath):
                     # remove old entrys
@@ -292,6 +309,13 @@ def blueHandel(sock,connections):
                     if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
                         sendMeDown(pkg)
                         dstSock = None # broadcast
+                        if(brdCastSleep.get(pkg.src)):
+                            # broadcast flooding prevention
+                            ttime = brdCastSleep[pkg.src]
+                            if(ttime + brdSleepTime > cmpTime):
+                                continue
+                        else:
+                            brdCastSleep[pkg.src] = cmpTime
                     else:
                         # find best connection...
                         dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
@@ -374,10 +398,44 @@ def ipHandel(packet):
         # """
         messageQueue.append(ip_layer)
 
+def handleReplyService():
+    global running
+    replySocket = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
+    replySocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
+    try:
+        replyServicePort = config_data["replyService"]
+        replySocket.bind(("",replyServicePort))
+        hostReply = config_data["hostReply"]
+        if("/" in hostReply and os.path.exists(hostReply)):
+            with open(hostReply,"rb") as fptr:
+                hostReply = fptr.read()
+        else:hostReply = bytes(hostReply,"utf-8")
+        while True:
+            readable, writeable, exceptional = select.select(
+                    [replySocket],[],[],1)
+            for s in readable:
+                data, addr = s.recvfrom(1024)
+                s.sendto(hostReply,addr)
+            with runningMutex:
+                if(not running):
+                    break
+    except Exception as error: 
+        print(
+        type(error).__name__,          # TypeError
+        __file__,                  # /tmp/example.py
+        error.__traceback__.tb_lineno,  # 2
+        error
+        )
+    replySocket.close()
+    with runningMutex:
+        while running:
+            running = False;time.sleep(0.1) # set running false!
 
 blueThread = threading.Thread(target=blueHandel, args=(blueServer,connections))
+replyThread = threading.Thread(target=handleReplyService)
 #sniffThread = threading.Thread(target=startIpHandel, args=(1,))
 blueThread.start()
+replyThread.start()
 #sniffThread.start()
 scapy.all.sniff(iface="veth0",prn=ipHandel, stop_filter=lambda p: not running)
 with runningMutex:
