@@ -1,0 +1,30 @@
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="style" href="style.css">
+        <title>BME280 Sensordaten - Beide Raspberry Pis</title>
+        <script>
+            const RefreshTime = 5000; //Refreshzeit in Millisekunden, ändern?
+            setTimeout(function(){ location.reload(); }, RefreshTime);
+        </script>
+    </head>
+    <body>
+        <h1>Sensordaten Raspberry Pi 1 & 2</h1>
+        <table>
+            <tr>
+                <th>Messgröße</th>
+                <th>Pi 1</th>
+                <th>Pi 1 Einheit</th>
+                <th>Pi 2</th>
+                <th>Pi 2 Einheit</th> 
+            </tr>
+            <tr class="pi1"><td>Temperatur</td><td>{{ pi1_temperature }}</td><td>°C</td><td>{{ pi2_temperature }}</td><td>°C</td></tr>
+            <tr class="pi2"><td>Feuchtigkeit</td><td>{{ pi1_humidity }}</td><td>%</td><td>{{ pi2_humidity }}</td><td>%</td></tr>
+            <tr class="pi1"><td>Luftdruck</td><td>{{ pi1_pressure }}</td><td>hPa</td><td>{{ pi2_pressure }}</td><td>hPa</td></tr>
+            <tr class="pi2"><td>Zeitstempel</td><td>{{ pi1_timestamp }}</td><td></td><td>{{ pi2_timestamp }}</td><td></td></tr>
+        </table> <!-- momentan 5sek! -->
+        <div class="refresh">Daten werden automatisch alle 5 Sekunden aktualisiert.</div> 
+    </body> 
+    </html>

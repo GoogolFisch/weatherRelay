@@ -1,0 +1,9 @@
+
+            body { font-family: Arial, sans-serif; margin: 40px; background-color: #ffffff; }
+            table { border-collapse: collapse; width: 80%; margin: auto; background-color: white; }
+            th, td { border: 1px solid #d8d8d8; padding: 12px; text-align: center; }
+            th { background-color: #ffffff; color: white; }
+            h1 { text-align: center; color: #000000; }
+            .pi1 { background-color: #ffffff; }
+            .pi2 { background-color: #ffffff; }
+            .refresh { text-align: center; margin-top: 20px; color: #4b4b4b; }
