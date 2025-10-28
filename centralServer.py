@@ -6,13 +6,17 @@ from threading import Timer
 app = Flask(__name__)
 
 # RaspyIP!!!
-PI_IPS = ['pi1IP', 'pi2IP']  
-PORT = 5001  
+PI_IPS = ['172.28.37.102', '172.18.99.160']  
+PORT = 2680  
 
 sensor_data = {
     'pi1': {'temperature': 0.0, 'humidity': 0.0, 'pressure': 0.0, 'timestamp': ''},
     'pi2': {'temperature': 0.0, 'humidity': 0.0, 'pressure': 0.0, 'timestamp': ''}
 }
+
+# pre fetch html
+with open("WetterWeb.html") as fptr:
+    html_template = fptr.read()
 
 def fetch_data_from_pis():
     for i, ip in enumerate(PI_IPS, 1):
@@ -20,7 +24,7 @@ def fetch_data_from_pis():
             url = f'http://{ip}:{PORT}/data'
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
-                data = response.json()
+                data = response.json()[0]
                 sensor_data[f'pi{i}'] = data
                 print(f"Daten von Pi{i} ({ip}) geholt: Temp={data['temperature']:.2f}°C")
             else:
