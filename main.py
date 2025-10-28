@@ -402,9 +402,9 @@ def handleReplyService():
     global running
     replySocket = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
     replySocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
-    replySocket.bind(("",replyServicePort))
     try:
         replyServicePort = config_data["replyService"]
+        replySocket.bind(("",replyServicePort))
         hostReply = config_data["hostReply"]
         if("/" in hostReply and os.path.exists(hostReply)):
             with open(hostReply,"rb") as fptr:
