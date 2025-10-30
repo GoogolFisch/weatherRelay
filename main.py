@@ -148,6 +148,13 @@ def trySendPacket(pkg,dstSock=None,sock=None):
     elif(pkg.version == 6):
         pkg.hlim -= 1
         if(pkg.hlim <= 0):return
+    """if ((pkg.dst == broadIp4 or pkg.dst == broadIp6) and
+            brdCastSleep.get(pkg.src)):
+        ttime = brdCastSleep[pkg.src]
+        if(ttime + brdSleepTime > cmpTime):
+            printing(f"ignored {pkg.src}")
+            return # right after data = readDataFromSocket
+    #"""
     # send message
     printing(f"{pkg.dst} -> {dstSock} ... {pkg.src}")
     if(dstSock is not None):
@@ -311,9 +318,10 @@ def blueHandel(sock,connections):
                         dstSock = None # broadcast
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
-                            ttime = brdCastSleep[pkg.src]
-                            if(ttime + brdSleepTime > cmpTime):
-                                continue
+                            ttime = brdCastSleep[pkg.src] + brdSleepTime
+                            if(ttime > cmpTime):
+                                printing(f"ignored {pkg.src}")
+                                continue # right after data = readDataFromSocket
                         else:
                             brdCastSleep[pkg.src] = cmpTime
                     else:
@@ -385,7 +393,10 @@ def ipHandel(packet):
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
         # """
-        messageQueue.append(ip_layer)
+        if ip_layer.src == myIp4:
+            messageQueue.append(ip_layer)
+        else:
+            printing(f"(2025-10-30T18:34:34){ip_layer}")
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
         if len(ip_layer.build()) != ip_layer.plen:
@@ -396,7 +407,10 @@ def ipHandel(packet):
             messageQueue.append(ip_layer)
             #messageQueue.append(packet)
         # """
-        messageQueue.append(ip_layer)
+        if ip_layer.src == myIp6:
+            messageQueue.append(ip_layer)
+        else:
+            printing(f"(2025-10-30T18:34:21){ip_layer}")
 
 def handleReplyService():
     global running
