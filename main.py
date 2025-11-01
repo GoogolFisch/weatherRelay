@@ -308,25 +308,22 @@ def blueHandel(sock,connections):
                             break
                         index += pkg.plen + 40
                     else:printing(data);break # if false!
+                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                         continue
                     if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
                         sendMeDown(pkg)
                         dstSock = None # broadcast
+                    if(dstSock is None):
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
-                            ttime = brdCastSleep[pkg.src] + brdSleepTime
+                            ttime = brdCastSleep[pkg.src]
                             if(ttime > cmpTime):
                                 printing(f"ignored {pkg.src}")
                                 continue # right after data = readDataFromSocket
-                        else:
-                            brdCastSleep[pkg.src] = cmpTime
-                    else:
-                        # find best connection...
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
+                        brdCastSleep[pkg.src] = cmpTime + brdSleepTime
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
@@ -457,7 +454,7 @@ with runningMutex:
         running = False;time.sleep(0.1) # set running false!
 blueThread.join()
 if(config_data["doSetup"]):
-    os.system('ip addr del 172.16.0.0/16 brd + dev veth0 label eth0:0')
+    os.system('ip addr del 172.16.0.0/16 brd + dev veth0')
     os.system('ip addr del 10::/10 dev veth0 label eth0:0')
     os.system('ip link delete veth0 type dummy')
     os.system('rmmod dummy')
