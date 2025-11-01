@@ -324,8 +324,7 @@ def blueHandel(sock,connections):
                             if(ttime > cmpTime):
                                 printing(f"ignored {pkg.src}")
                                 continue # right after data = readDataFromSocket
-                        else:
-                            brdCastSleep[pkg.src] = cmpTime
+                        brdCastSleep[pkg.src] = cmpTime
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
