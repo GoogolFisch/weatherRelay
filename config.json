@@ -1,16 +1,12 @@
 {
 	"doSetup":true,
-	"_doSetup":[
-		"not in use!",
-		"arp",
-		"hciconfig"
-	],
 	"useIp4":true,
 	"ip4":"172.16.0.0/12",
 	"ip6":"10::/16",
 	"replyService":2048,
 	"hostReply":"./hostname.txt",
 	"ttd":60,
+	"messageLimit":30,
 	"brdSleep":5,
 	"rescanScale":600,
 	"passMessages":true,
