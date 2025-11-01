@@ -318,8 +318,6 @@ def blueHandel(sock,connections):
                         sendMeDown(pkg)
                         dstSock = None # broadcast
                     if(dstSock is None):
-                        if  (pkg.version == 4):pkg.ttl  -= 1
-                        elif(pkg.version == 6):pkg.hlim -= 1
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
                             ttime = brdCastSleep[pkg.src] + brdSleepTime
