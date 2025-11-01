@@ -82,6 +82,7 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 brdSleepTime = config_data.get("brdSleep") or 5
 rescan_scale = config_data.get("rescanScale") or 30
+messageLimit = config_data.get("messageLimit") or 30
 runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
@@ -327,7 +328,10 @@ def blueHandel(sock,connections):
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
-            while len(messageQueue) > 0:
+            # Host -> BlueNetwork
+            messageCounter = 0
+            while len(messageQueue) > 0 and messageCounter < messageLimit:
+                messageCounter += 1
                 pkg = messageQueue.pop(0)
                 printing(f"Destination IP: {pkg.dst}")
                 # find best connection...
