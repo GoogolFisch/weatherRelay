@@ -82,6 +82,7 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 brdSleepTime = config_data.get("brdSleep") or 5
 rescan_scale = config_data.get("rescanScale") or 30
+messageLimit = config_data.get("messageLimit") or 30
 runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
@@ -308,14 +309,17 @@ def blueHandel(sock,connections):
                             break
                         index += pkg.plen + 40
                     else:printing(data);break # if false!
+                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                         continue
                     if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
                         sendMeDown(pkg)
                         dstSock = None # broadcast
+                    if(dstSock is None):
+                        if  (pkg.version == 4):pkg.ttl  -= 1
+                        elif(pkg.version == 6):pkg.hlim -= 1
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
                             ttime = brdCastSleep[pkg.src] + brdSleepTime
@@ -324,13 +328,13 @@ def blueHandel(sock,connections):
                                 continue # right after data = readDataFromSocket
                         else:
                             brdCastSleep[pkg.src] = cmpTime
-                    else:
-                        # find best connection...
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
-            while len(messageQueue) > 0:
+            # Host -> BlueNetwork
+            messageCounter = 0
+            while len(messageQueue) > 0 and messageCounter < messageLimit:
+                messageCounter += 1
                 pkg = messageQueue.pop(0)
                 printing(f"Destination IP: {pkg.dst}")
                 # find best connection...
