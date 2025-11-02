@@ -314,9 +314,7 @@ def blueHandel(sock,connections):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
                         continue
-                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
-                        sendMeDown(pkg)
-                        dstSock = None # broadcast
+                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6): dstSock = None # broadcast
                     if(dstSock is None):
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
@@ -325,6 +323,7 @@ def blueHandel(sock,connections):
                                 printing(f"ignored {pkg.src}")
                                 continue # right after data = readDataFromSocket
                         brdCastSleep[pkg.src] = cmpTime
+                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6): sendMeDown(pkg)
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
