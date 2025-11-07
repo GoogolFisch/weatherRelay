@@ -5,7 +5,7 @@ from threading import Timer
 
 app = Flask(__name__)
 
-# RaspyIP!!!
+# RaspyIP
 PI_IPS = ['172.28.37.102', '172.18.99.160']  
 PORT = 2680  
 
@@ -35,7 +35,7 @@ def fetch_data_from_pis():
             sensor_data[f'pi{i}'] = {'temperature': -999, 'humidity': -999, 'pressure': -999, 'timestamp': 'Verbindung fehlgeschlagen'}
     
     #reset nach 5sek (?)
-    Timer(5.0, fetch_data_from_pis).start() #!!!
+    Timer(5.0, fetch_data_from_pis).start() #lölölö
 
 @app.route('/')
 def index():
