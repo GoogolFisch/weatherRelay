@@ -1,0 +1,15 @@
+
+
+RPi's: innen, draußen
+
+simulierte Aktion: Fenster öffnen/schließen
+
+draußen näher an 20°C ist als innen, dann Fenster offen
+und wenn draußen ca. 20°C ist.
+alle 2 Stunden Stoßlüften für 5 Min, außer Luftfeuchtigkeit/Luftdruck ist zu hoch
+oder nach wahl
+
+Wettervorhersage:
+wenn Luftdruck fallend => Regen wahrscheinlich
+wenn Luftdruck steigend => klares Wetter
+
