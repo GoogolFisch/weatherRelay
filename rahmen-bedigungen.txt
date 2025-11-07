@@ -1,0 +1,12 @@
+
+Design: Dark-mode
+
+Mehrere Graphen
+- Temperatur - Luftduck
+- Temperatur - Zeit (Farbe die RPi's trennen)
+- Luftduck - Zeit (Farbe die RPi's trennen)
+- Differenz Graphen
+
+teilung zwischen historischen und echtzeit Daten.
+
+und die Vorhersagen?
