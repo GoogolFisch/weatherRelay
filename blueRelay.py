@@ -11,6 +11,9 @@ import random
 import socket
 import os
 
+if(os.geteuid() != 0):
+    sys = __import__("sys")
+    sys.exit("you need to run it as root")
 
 CONFIG_FILE = "./config.json"
 with open(CONFIG_FILE,"r") as fptr:
@@ -86,6 +89,8 @@ messageLimit = config_data.get("messageLimit") or 30
 runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
+    # start bluetoothd ???
+
     # adding virtual interface ...
     # https://linuxconfig.org/configuring-virtual-network-interfaces-in-linux
     os.system('modprobe dummy')

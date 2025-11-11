@@ -7,6 +7,6 @@ cd "$SCRIPT_DIR" || exit
 
 source ./bin/activate
 
-./main.py
+./blueRelay.py
 
 deactivate
