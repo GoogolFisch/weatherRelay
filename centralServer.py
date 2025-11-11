@@ -5,6 +5,7 @@ from threading import Timer, Lock, Thread
 import select
 import socket
 
+
 app = Flask(__name__)
 
 # RaspyIP
@@ -82,11 +83,20 @@ def fetch_data_from_pis(interval = 5):
 
 @app.route('/file/<fileName>')
 def get_style_css(fileName):
+    ext = fileName.split(".")[-1]
+    extList = {
+            "gif":"image/gif","ico":"image/vnd.microsoft.icon", "mp3":"audio/mpeg","mp4":"video/mp4",
+            "css":"text/css", "json":"application/json","md":"text/markdown","js":"text/javascript",
+            "txt":"text/plain","html":"text/html","htm":"text/html"}
+    if(extList.get(ext) != None):
+        ext = extList[ext]
+    else:
+        ext = "text/html"
     if(".." in fileName):
         return Respnse("No!")
     with open(fileName,"r") as fptr:
         data = fptr.read()
-    return Response(data,mimetype="text/css")
+    return Response(data,mimetype=ext)
 
 @app.route('/')
 def index():
@@ -133,7 +143,8 @@ if __name__ == '__main__':
     timFetch.start()
     timGetPi.start()
     # Starte Server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    #requires pyopenssl
+    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context="adhoc")
     print(timFetch.is_alive())
     print(timGetPi.is_alive())
     with mutex:
