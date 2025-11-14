@@ -114,9 +114,9 @@ def index():
         #pi_time += f"<td>{val['timestamp']}</td>"
         table_row += f"<tr class=\"pi-data\">"
         table_row += f"<td>{key}</td>"
-        table_row += f"<td>{val['temperature']}</td>"
-        table_row += f"<td>{val['humidity']}</td>"
-        table_row += f"<td>{val['pressure']}</td>"
+        table_row += f"<td>{val['temperature']:.2f}</td>"
+        table_row += f"<td>{val['humidity']:.2f}</td>"
+        table_row += f"<td>{val['pressure']:.2f}</td>"
         table_row += f"<td>{val['timestamp']}</td>"
 
         table_row += f"</tr>"
