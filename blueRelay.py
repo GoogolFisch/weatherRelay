@@ -232,6 +232,8 @@ def sendMeDown(_pkg):
     #pkg.show2()
     #pkg = scapy.all.IP(_pkg.build())
     if(pkg.version == 4): del(pkg.chksum)# = None
+    elif(pkg.version == 6):
+        pkg.dst = myIp6
     printing(f"getting IP: {pkg.dst} from {pkg.src}")
     try: del(pkg.payload.chksum)# = None
     except:pass
