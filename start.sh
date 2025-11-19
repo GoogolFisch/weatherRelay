@@ -8,6 +8,6 @@ cd "$SCRIPT_DIR" || exit
 source ./bin/activate
 
 python3 ./sensor-bme280.py &
-./main.py
+./blueRelay.py
 
 deactivate
