@@ -11,6 +11,9 @@ import random
 import socket
 import os
 
+if(os.geteuid() != 0):
+    sys = __import__("sys")
+    sys.exit("you need to run it as root")
 
 CONFIG_FILE = "./config.json"
 with open(CONFIG_FILE,"r") as fptr:
@@ -28,52 +31,68 @@ redirectMap = {} # this will be generated
 brdCastSleep = {} # this also
 
 #ipv4
+def ipv4_extract(myip:str):
+    valueIp = 0
+    for v in [int(x) for x in myip.split("/")[0].split(".")]:
+        valueIp <<= 8
+        valueIp += v
+    return valueIp
+
+def ipv4_simplify(valueIp:int):
+    myIp = []
+    for _ in range(4):
+        myIp.insert(0,str(valueIp & 255))
+        valueIp >>= 8
+    return ".".join(myIp)
+
 myIp4 = config_data.get("ip4") or "172.16.0.0/12"
-valueIp4 = 0
-for v in [int(x) for x in myIp4.split("/")[0].split(".")]:
-    valueIp4 <<= 8
-    valueIp4 += v
+valueIp4 = ipv4_extract(myIp4)
 sub4 = 32 - int(myIp4.split("/")[1])
 broadValue = valueIp4 | (1 << sub4) - 1
 valueIp4 |= broadValue & random.randrange(1,(1 << sub4) - 1)
-myIp4 = []
-broadIp4 = []
 sub4 = 32 - sub4
-for _ in range(4):
-    myIp4.insert(0,str(valueIp4 & 255))
-    broadIp4.insert(0,str(broadValue & 255))
-    valueIp4 >>= 8
-    broadValue >>= 8
-myIp4 = ".".join(myIp4)
-broadIp4 = ".".join(broadIp4)
+myIp4 = ipv4_simplify(valueIp4)
+broadIp4 = ipv4_simplify(broadValue)
 
 #ipv6
+def ipv6_simplify(valIp:int):
+    ip6 = []
+    for _ in range(8):
+        ip6.insert(0,hex(valIp & 0xffff)[2:])
+        valIp >>= 16
+    ip6 = ":".join(ip6)
+    for rlen in range(8,0,-1):
+        # pat, new, count
+        nip6 = ip6.replace((":0" * rlen) + ":","::",1)
+        if(nip6 != ip6):
+            return nip6
+    return ip6
+
+def ipv6_extract(myip:str):
+    stringing6 = [
+            (int(x,16) if x != "" else "")
+            for x in myip.split("/")[0].split(":")
+            ]
+    if(stringing6[0] == ""):stringing6[0] = 0 # catch :12::1
+    if(stringing6[-1] == ""):stringing6[-1] = 0 # catch 10::1:
+    index6 = stringing6.index("")
+    stringing6.pop(index6)
+    while stringing6.count("") > 0: stringing6.pop(stringing6.index(""))
+    while len(stringing6) < 8: stringing6.insert(index6,0)
+    valueIp6 = 0
+    for v in stringing6:
+        valueIp6 <<= 16
+        valueIp6 += v
+    return valueIp6
+
 myIp6 = config_data.get("ip6") or "10::/16"
-valueIp6 = 0
-stringing6 = [(int(x,16) if x != "" else "") for x in myIp6.split("/")[0].split(":")]
-if(stringing6[0] == ""):stringing6[0] = 0 # catch :12::1
-if(stringing6[-1] == ""):stringing6[-1] = 0 # catch 10::1:
-index6 = stringing6.index("")
-stringing6.pop(index6)
-while stringing6.count("") > 0: stringing6.pop(stringing6.index(""))
-while len(stringing6) < 8: stringing6.insert(index6,0)
-print(stringing6)
-for v in stringing6:
-    valueIp6 <<= 16
-    valueIp6 += v
-sub6 = 128 - int(myIp6.split("/")[1])
-broadValue = valueIp6 | (1 << sub6) - 1
-valueIp6 |= broadValue & random.randrange(1,(1 << sub6) - 1)
-myIp6 = []
-broadIp6 = []
-sub6 = 128 - sub6
-for _ in range(8):
-    myIp6.insert(0,hex(valueIp6 & 0xffff)[2:])
-    broadIp6.insert(0,hex(broadValue & 0xffff)[2:])
-    valueIp6 >>= 16
-    broadValue >>= 16
-myIp6 = ":".join(myIp6)
-broadIp6 = ":".join(broadIp6)
+valueIp6 = ipv6_extract(myIp6)
+sub6 = int(myIp6.split("/")[1])
+broadValue = valueIp6 | 1
+valueIp6 |= random.randrange(2,(1 << (128 - sub6)) - 1)
+myIp6 = ipv6_simplify(valueIp6)
+broadIp6 = ipv6_simplify(broadValue)
+#for rlen in range(8,0,-1):
 
 #
 printing(f"lcl: {myIp4} , {myIp6}")
@@ -82,6 +101,7 @@ running = True
 timeToDeath = config_data.get("ttd") or 10
 brdSleepTime = config_data.get("brdSleep") or 5
 rescan_scale = config_data.get("rescanScale") or 30
+messageLimit = config_data.get("messageLimit") or 30
 runningMutex = threading.Lock()
 
 if(config_data["doSetup"]):
@@ -186,6 +206,8 @@ def readDataFromSocket(socket):
             print(outl)
             if(len(outl) == 0):return data
         #"""
+        # adding a data remove thing!
+        # TODO
         return data + socket.recv(66000)
     except Exception as error: 
         print(
@@ -210,6 +232,8 @@ def sendMeDown(_pkg):
     #pkg.show2()
     #pkg = scapy.all.IP(_pkg.build())
     if(pkg.version == 4): del(pkg.chksum)# = None
+    elif(pkg.version == 6):
+        pkg.dst = myIp6
     printing(f"getting IP: {pkg.dst} from {pkg.src}")
     try: del(pkg.payload.chksum)# = None
     except:pass
@@ -308,29 +332,28 @@ def blueHandel(sock,connections):
                             break
                         index += pkg.plen + 40
                     else:printing(data);break # if false!
+                    dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
                         #sendDownPkgs.append(pkg)
                         sendMeDown(pkg)
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                         continue
-                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6):
-                        sendMeDown(pkg)
-                        dstSock = None # broadcast
+                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6): dstSock = None # broadcast
+                    if(dstSock is None):
                         if(brdCastSleep.get(pkg.src)):
                             # broadcast flooding prevention
                             ttime = brdCastSleep[pkg.src] + brdSleepTime
                             if(ttime > cmpTime):
                                 printing(f"ignored {pkg.src}")
                                 continue # right after data = readDataFromSocket
-                        else:
-                            brdCastSleep[pkg.src] = cmpTime
-                    else:
-                        # find best connection...
-                        dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
+                        brdCastSleep[pkg.src] = cmpTime
+                    if(pkg.dst == broadIp4 or pkg.dst == broadIp6): sendMeDown(pkg)
                     printing(f"passing IP: {pkg.src} -> {pkg.dst} - of {s}")
                     trySendPacket(pkg,dstSock,s)
                 timeToRescan = cmpTime + rescan_scale * len(connections)
-            while len(messageQueue) > 0:
+            # Host -> BlueNetwork
+            messageCounter = 0
+            while len(messageQueue) > 0 and messageCounter < messageLimit:
+                messageCounter += 1
                 pkg = messageQueue.pop(0)
                 printing(f"Destination IP: {pkg.dst}")
                 # find best connection...
@@ -383,6 +406,7 @@ def blueHandel(sock,connections):
 
 def ipHandel(packet):
     # TODO don't accept unfinished packets
+    # make ICMP work?
     if scapy.all.IP in packet:
         ip_layer = packet[scapy.all.IP]
         if len(ip_layer.build()) != ip_layer.len:
@@ -399,7 +423,7 @@ def ipHandel(packet):
             printing(f"(2025-10-30T18:34:34){ip_layer}")
     if scapy.all.IPv6 in packet:
         ip_layer = packet[scapy.all.IPv6]
-        if len(ip_layer.build()) != ip_layer.plen:
+        if len(ip_layer.build()) != ip_layer.plen + 40:
             printing(f"(2025-10-19T12:20:50){ip_layer}")
             return
         """if(ip_layer.dst.startswith(beginnIp6)):
@@ -428,7 +452,7 @@ def handleReplyService():
             readable, writeable, exceptional = select.select(
                     [replySocket],[],[],1)
             for s in readable:
-                data, addr = s.recvfrom(1024)
+                data, addr = s.recvfrom(2048)
                 s.sendto(hostReply,addr)
             with runningMutex:
                 if(not running):
