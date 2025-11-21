@@ -331,6 +331,7 @@ def blueHandel(sock,connections):
                             socketDataOverFlow[s] = data[index:]
                             break
                         index += pkg.plen + 40
+                        print(pkg.dst)
                     else:printing(data);break # if false!
                     dstSock = bindIpSocket(pkg,defaultVec,cmpTime,s)
                     if(pkg.dst == myIp4 or pkg.dst == myIp6):
