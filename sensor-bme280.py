@@ -128,13 +128,24 @@ def httpParser(data):
         except:pass
 
     return build
+    
 
 tcpServer = socket.socket(socket.AF_INET6,socket.SOCK_STREAM)
 udpServer = socket.socket(socket.AF_INET6,socket.SOCK_DGRAM)
-tcpServer.bind(("",2680))
+tcpServer.bind(("::",2680))
 tcpServer.listen(5)
-udpServer.bind(("",2680))
+udpServer.bind(("::",2680))
 clients = [tcpServer,udpServer]
+try:
+    tcpServer4 = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    udpServer4 = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    tcpServer4.bind(("0.0.0.0",2680))
+    tcpServer4.listen(5)
+    udpServer4.bind(("0.0.0.0",2680))
+    clients.append(tcpServer4)
+    clients.append(udpServer4)
+except:
+    print("Error when also starting ipv4 sockets, doesn't matter!")
 try:
     while True:
         readable, writeable, exceptional = select.select(
@@ -155,10 +166,25 @@ try:
                 scraped = json.dumps(subsection(jdata))
                 s.sendto(bytes(scraped,"utf-8"),addr)
                 continue
+            if s is tcpServer4:
+                # allow others to connect
+                connection, client_address = s.accept()
+                print(f"{connection=} {client_address=}")
+                connection.setblocking(0)
+                clients.append(connection)
+                continue
+            if s is udpServer4:
+                data,addr = s.recvfrom(128)
+                print(data,addr)
+                try:jdata = json.loads(data.decode("utf-8").replace("'",'"'))
+                except:jdata = {}
+                scraped = json.dumps(subsection(jdata))
+                s.sendto(bytes(scraped,"utf-8"),addr)
+                continue
             isHttp = False
             try:
                 data = s.recv(2048)
-            except BrokenPipeError:
+            except (BrokenPipeError, ConnectionAbortedError):
                 clients.remove(s)
                 s.close()
                 continue

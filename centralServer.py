@@ -19,9 +19,6 @@ PORT = 2680
 sensor_data = {
 }
 
-# pre fetch html
-with open("WetterWeb.html") as fptr:
-    html_template = fptr.read()
 
 def get_pi_addresses(interval = 60):
     #global reqAddresses
@@ -88,8 +85,8 @@ def get_style_css(fileName):
         data = fptr.read()
     return Response(data,mimetype="text/css")
 
-@app.route('/')
-def index():
+@app.route('/WetterWeb')
+def WetterWeb_site():
     #herePis = ""
     #pi_temp = ""
     #pi_hum = ""
@@ -122,6 +119,15 @@ def index():
       #pi_humidity=pi_hum,
       #pi_pressure=pi_pres,
       #pi_timestamp=pi_time
+    )
+
+@app.route("/")
+def index():
+    htmlData = "XXX"
+    with open("index.html","r")as fptr:
+        htmlData = fptr.read()
+    
+    return render_template_string(htmlData,
     )
 
 if __name__ == '__main__':
