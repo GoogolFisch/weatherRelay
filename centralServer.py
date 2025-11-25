@@ -5,7 +5,6 @@ from threading import Timer, Lock, Thread
 import select
 import socket
 
-
 app = Flask(__name__)
 
 # RaspyIP
@@ -17,11 +16,13 @@ reqSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 reqSocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
 PORT = 2680  
 
-sensor_data = {
-}
+if("sensor_data" not in globals()):
+    sensor_data = {}
+
 
 
 def get_pi_addresses(interval = 60):
+    exiting = False
     #global reqAddresses
     while True:
         print("reload pis")
@@ -44,18 +45,29 @@ def get_pi_addresses(interval = 60):
             reqAddresses.clear()
             reqAddresses.extend(newAddresses)
             #reqAddresses = newAddresses
-            if(not running):break
+            if(not running):
+                exiting = True
+                break
         print("updated pis")
         #time.sleep(interval)
         for _ in range(interval):
             time.sleep(1)
-            if(not running):break
+            if(not running):
+                exiting = True
+                break
+        if(exiting):break
     print("StoppGet")
 
+
+
 def fetch_data_from_pis(interval = 5):
+    exiting = False
     cpAddresses = []
     while True:
         for ipAddr,piname in cpAddresses:
+            if(type(piname) == bytes):
+                piname = str(piname,"utf-8")
+                piname = piname.split("\n")[0]
             try:
                 url = f'http://{ipAddr}:{PORT}'
                 response = requests.get(url, timeout=5)#,max_retries=1)
@@ -65,17 +77,20 @@ def fetch_data_from_pis(interval = 5):
                     print(f"Daten von Pi-{piname} ({ipAddr}) geholt: Temp={data['temperature']:.2f}°C")
                 else:
                     print(f"Fehler bei Pi{i} ({ip}): Status {response.status_code}")
-                    #sensor_data[f'pi{i}'] = {'temperature': -999, 'humidity': -999, 'pressure': -999, 'timestamp': 'Verbindung fehlgeschlagen'}
             except Exception as e:
                 print(f"Verbindungsfehler zu Pi-{piname} ({ipAddr}): {e}")
-                #sensor_data[f'pi{i}'] = {'temperature': -999, 'humidity': -999, 'pressure': -999, 'timestamp': 'Verbindung fehlgeschlagen'}
         with mutex:
             cpAddresses = reqAddresses
-            if(not running):break
+            if(not running):
+                exiting = True
+                break
         #time.sleep(interval)
         for _ in range(interval):
             time.sleep(1)
-            if(not running):break
+            if(not running):
+                exiting = True
+                break
+        if(exiting):break
     print("StoppFetch")
 
 @app.route('/file/<fileName>')
@@ -97,18 +112,9 @@ def get_style_css(fileName):
 
 @app.route('/WetterWeb')
 def WetterWeb_site():
-    #herePis = ""
-    #pi_temp = ""
-    #pi_hum = ""
-    #pi_pres = ""
-    #pi_time = ""
     table_row = ""
-    for key,val in sensor_data.items():
-        #herePis += f"<th>{key}</th>"
-        #pi_temp += f"<td>{val['temperature']}</td>"
-        #pi_hum += f"<td>{val['humidity']}</td>"
-        #pi_pres += f"<td>{val['pressure']}</td>"
-        #pi_time += f"<td>{val['timestamp']}</td>"
+    sdata = sensor_data
+    for key,val in sdata.items():
         table_row += f"<tr class=\"pi-data\">"
         table_row += f"<td>{key}</td>"
         table_row += f"<td>{val['temperature']:.2f}</td>"
@@ -150,7 +156,8 @@ if __name__ == '__main__':
     timGetPi.start()
     # Starte Server
     #requires pyopenssl
-    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context="adhoc")
+    app.use_reloader = False # making data gathering work...
+    app.run(host='0.0.0.0', port=5000, ssl_context="adhoc")
     print(timFetch.is_alive())
     print(timGetPi.is_alive())
     with mutex:
