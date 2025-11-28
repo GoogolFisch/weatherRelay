@@ -1,9 +1,11 @@
 import time
+import os
 import requests
 from flask import Flask, render_template_string, render_template, Response
 from threading import Timer, Lock, Thread
 import select
 import socket
+import json
 
 app = Flask(__name__)
 
@@ -61,6 +63,10 @@ def get_pi_addresses(interval = 60):
 
 
 def fetch_data_from_pis(interval = 5):
+    fptr = open("temp.data","a")
+    lastMin = ""
+    currentMin = ""
+    minuteData = {}
     exiting = False
     cpAddresses = []
     while True:
@@ -73,12 +79,37 @@ def fetch_data_from_pis(interval = 5):
                 response = requests.get(url, timeout=5)#,max_retries=1)
                 if response.status_code == 200:
                     data = response.json()[0]
+                    data["name"] = piname
                     sensor_data[piname] = data
-                    print(f"Daten von Pi-{piname} ({ipAddr}) geholt: Temp={data['temperature']:.2f}°C")
-                else:
-                    print(f"Fehler bei Pi{i} ({ip}): Status {response.status_code}")
+                    minuteData[piname] = data
+                    currentMin = data["timestamp"][:-3]
+                else: print(f"Fehler bei Pi{i} ({ip}): Status {response.status_code}")
             except Exception as e:
                 print(f"Verbindungsfehler zu Pi-{piname} ({ipAddr}): {e}")
+        if(lastMin == ""):lastMin = currentMin
+        if(currentMin != lastMin):
+            print(lastMin,minuteData)
+            fptr.write(lastMin + " ")
+            isFirst = True
+            for name,val in minuteData.items():
+                naming = val["name"]
+                naming = naming.replace(" ","").replace('"',"").replace("'","")
+                naming = naming.replace(",","")
+                if(isFirst):
+                    outp = ""
+                    isFirst = False
+                else:outp = " "
+                outp += f'n:{naming},'
+                outp += f't:{val["temperature"]:.2f},'
+                outp += f'h:{val["humidity"]:.2f},'
+                outp += f'p:{val["pressure"]:.1f}'
+                fptr.write(outp)
+            fptr.write("\n")
+            os.fsync(fptr)
+            minuteData.clear()
+            lastMin = currentMin
+            fptr.flush()
+
         with mutex:
             cpAddresses = reqAddresses
             if(not running):
@@ -91,7 +122,31 @@ def fetch_data_from_pis(interval = 5):
                 exiting = True
                 break
         if(exiting):break
+    fptr.close()
     print("StoppFetch")
+
+
+def getFromData(string):
+    outp = []
+    lines = string.split("\n")
+    for ln in lines:
+        spaces = ln.split(" ")
+        time = spaces[0]
+        spaces = spaces[1:]
+        upDic = dict()
+        for sp in spaces:
+            dic = dict()
+            dic["timestamp"] = time +"-00"
+            parts = spaces.split(",")
+            dic["name"] = parts[0][2:]
+            dic["temperature"] = parts[1][2:]
+            dic["humiity"] = parts[2][2:]
+            dic["pressure"] = parts[3][2:]
+            upDic[dic["name"]] = dic
+        outp.append(upDic)
+    return outp
+
+
 
 @app.route('/file/<fileName>')
 def get_style_css(fileName):
@@ -99,7 +154,7 @@ def get_style_css(fileName):
     extList = {
             "gif":"image/gif","ico":"image/vnd.microsoft.icon", "mp3":"audio/mpeg","mp4":"video/mp4",
             "css":"text/css", "json":"application/json","md":"text/markdown","js":"text/javascript",
-            "txt":"text/plain","html":"text/html","htm":"text/html"}
+            "txt":"text/plain","data":"text/plain","html":"text/html","htm":"text/html"}
     if(extList.get(ext) != None):
         ext = extList[ext]
     else:
