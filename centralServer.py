@@ -8,6 +8,7 @@ from threading import Timer, Lock, Thread
 import select
 import socket
 import json
+import re
 
 app = Flask(__name__)
 appSocket = SocketIO(app)
@@ -21,6 +22,8 @@ reqAddresses = []
 reqSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 reqSocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
 PORT = 2680  
+WEATHERDATA_FILE = "temp.data"
+HTML_DEFAULT_PATH = "." + os.sep
 
 if("sensor_data" not in globals()):
     sensor_data = {}
@@ -69,7 +72,7 @@ def get_pi_addresses(interval = 60):
 
 
 def fetch_data_from_pis(interval = 5):
-    fptr = open("temp.data","a")
+    fptr = open(WEATHERDATA_FILE,"a")
     lastMin = ""
     currentMin = ""
     minuteData = {}
@@ -139,6 +142,8 @@ def getFromData(string):
     for ln in lines:
         spaces = ln.split(" ")
         time = spaces[0]
+        if(not re.match("\d\d(\d\d[-_]){4}\d\d",time)):
+            continue
         spaces = spaces[1:]
         upDic = dict()
         for sp in spaces:
@@ -168,11 +173,11 @@ def get_style_css(fileName):
         ext = "text/html"
     if(".." in fileName):
         return Respnse("No!")
-    with open(fileName,"r") as fptr:
+    with open(HTML_DEFAULT_PATH + fileName,"r") as fptr:
         data = fptr.read()
     return Response(data,mimetype=ext)
 
-@app.route('/WetterWeb')
+@app.route('/wetterWeb')
 def WetterWeb_site():
     table_row = ""
     sdata = sensor_data
@@ -187,7 +192,7 @@ def WetterWeb_site():
         table_row += f"</tr>"
 
     htmlData = ""
-    with open("WetterWeb.html","r")as fptr:
+    with open(HTML_DEFAULT_PATH + "WetterWeb.html","r")as fptr:
         htmlData = fptr.read()
     htmlData = htmlData.replace("$$$",table_row)
 
@@ -203,10 +208,41 @@ def WetterWeb_site():
 def socket_GetWeatherNow(data):
     emit("setWeatherNow",json.dumps(sensor_data))
 
+@appSocket.on("fetchWeather")
+def socket_GetWeatherNow(data):
+    length = 1024 # last 1024 bytes?
+    start = -1 # (end)
+    fmt = "raw"
+    try:
+        jsData = json.loads(data)
+        length = int(jsData["length"])
+        start = int(jsData["start"])
+        fmt = jsData["fmt"]
+    except:pass
+    with open(WEATHERDATA_FILE,"r")as fptr:
+        maxima = fptr.seek(0,2) # seek(0,end)
+        if(length == -1):length = maxima
+        if(start == -1):fptr.seek(maxima - length)
+        outp = fptr.read(length)
+    if(fmt == "json"):
+        outp = json.dumps(getFromData(outp))
+    emit("sendWeather",outp)
+
+@app.route("/graph/")
+def graphen():
+    with open(HTML_DEFAULT_PATH + "graphen.html","r")as fptr:
+        htmlData = fptr.read()
+    return render_template_string(htmlData)
+
+@app.route("/winSim3000/")
+def winSim3000():
+    with open(HTML_DEFAULT_PATH + "winSim3000.html","r")as fptr:
+        htmlData = fptr.read()
+    return render_template_string(htmlData)
 @app.route("/")
 def index():
     htmlData = "XXX"
-    with open("index.html","r")as fptr:
+    with open(HTML_DEFAULT_PATH + "index.html","r")as fptr:
         htmlData = fptr.read()
     
     return render_template_string(htmlData,
