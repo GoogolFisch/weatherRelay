@@ -2,18 +2,22 @@ import time
 import os
 import requests
 from flask import Flask, render_template_string, render_template, Response
+from flask_socketio import SocketIO, send, emit, join_room, leave_room
+
 from threading import Timer, Lock, Thread
 import select
 import socket
 import json
 
 app = Flask(__name__)
+appSocket = SocketIO(app)
 
 # RaspyIP
 mutex = Lock()
 running = True
 
 reqAddresses = []
+#reqAddresses = [("127.0.0.1","me")] # uncomment, 4 debugging!
 reqSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 reqSocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
 PORT = 2680  
@@ -25,6 +29,8 @@ if("sensor_data" not in globals()):
 
 def get_pi_addresses(interval = 60):
     exiting = False
+    if(len(reqAddresses) != 0):
+        return
     #global reqAddresses
     while True:
         print("reload pis")
@@ -105,7 +111,8 @@ def fetch_data_from_pis(interval = 5):
                 outp += f'p:{val["pressure"]:.1f}'
                 fptr.write(outp)
             fptr.write("\n")
-            os.fsync(fptr)
+            if(lastMin[-1] == "0" or lastMin[-1] == "5"):
+                os.fsync(fptr)
             minuteData.clear()
             lastMin = currentMin
             fptr.flush()
@@ -191,6 +198,10 @@ def WetterWeb_site():
       #pi_pressure=pi_pres,
       #pi_timestamp=pi_time
     )
+
+@appSocket.on("getWeatherNow")
+def socket_GetWeatherNow(data):
+    emit("setWeatherNow",json.dumps(sensor_data))
 
 @app.route("/")
 def index():
