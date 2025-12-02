@@ -5,13 +5,20 @@
 	<title>Window Simulator 3000</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <style>
-.red{color:brown}
+.red{color:orangered}
 .blue{color:darkblue}
+.black{color:darkred}
 </style>
 	<script>
 	var socket = io();
 	socket.emit("getWeatherNow", "1");  // Notify server of new user
 
+	function WetBulb(temp,relH){
+		// https://www.omnicalculator.com/physics/wet-bulb
+		return temp*Math.atan(0.151977 * Math.sqrt(relH + 8.313659))
+			+ 0.00391838*Math.sqrt(relH * relH * relH) * Math.atan(0.023101 * relH)
+			- Math.atan(relH - 1.676331) + Math.atan(temp + relH) - 4.686035;
+	}
 	// Listen for messages from server
 	socket.on("setWeatherNow", function(rdata) {
 		var messages = document.getElementById("Weather");
@@ -19,13 +26,19 @@
 		var wnTempRange = document.getElementById("wnTRange");
 		let data = JSON.parse(rdata);
 		let output = ""
+		let isDangerous,isHeater,isWindow;
 		for(var key in data){
 			var value = data[key];
+			isDangerous = WetBulb(value.temperature,value.humidity) > 30;
+			isHeater = value.temperature < htTempRange.value;
+			isWindow = value.temperature > wnTempRange.value;
 			output += `<p `;
-			if(value.temperature < htTempRange.value){
+			if(isHeater){
 				output += `class="red">At ${value.name} is it ${value.temperature}°C and too cold, you have to turn on the heater!`;
-			}else if(value.temperature > wnTempRange.value){
-				output += `class="blue">At ${value.name} is it too hot, opening a window... (${value.temperature}°C)`;
+			}else if(isDangerous){
+				output += `class="black">At ${value.name} is way too hot⚠️, opening a window... (${value.temperature}°C and ${value.humidity}RH%)`;
+			}else if(isWindow){
+				output += `class="blue">At ${value.name} is it warm, opening a window... (${value.temperature}°C)`;
 			}else{
 				output += `>At ${value.name} is it ${value.temperature}°C`;
 			}
@@ -45,7 +58,7 @@
 	<label for="htTRange" class="red">Room-heater threshhold:</label>
 	<input type="range" min="5" max="20" value="15" id="htTRange"
 	oninput="document.getElementById('tempRangeOut').innerHTML = event.target.value + '°C';">
-	<output id="tempRangeOut">20°C</output>
+	<output id="tempRangeOut">15°C</output>
 	<br>
 
 	<label for="wnTRange" class="blue">Window opener threshhold:</label>
