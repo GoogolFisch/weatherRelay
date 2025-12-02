@@ -7,6 +7,6 @@ cd "$SCRIPT_DIR" || exit
 
 source ./bin/activate
 
-./main.py
+python3.11 centralServer.py
 
 deactivate
