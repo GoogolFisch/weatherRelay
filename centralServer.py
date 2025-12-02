@@ -23,7 +23,7 @@ reqSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 reqSocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
 PORT = 2680  
 WEATHERDATA_FILE = "temp.data"
-HTML_DEFAULT_PATH = "." + os.sep
+HTML_DEFAULT_PATH = "." + os.sep + "htmlSeiten" + os.sep
 
 if("sensor_data" not in globals()):
     sensor_data = {}
