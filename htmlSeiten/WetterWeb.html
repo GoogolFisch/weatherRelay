@@ -5,14 +5,40 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" type="text/css" href="file/style.css" />
         <title>BME280 Sensordaten - Beide Raspberry Pis</title>
-        <script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+	<script>
+	var socket = io();
+	//socket.emit("getWeatherNow", "1");  // Notify server of new user
+
+	function WetBulb(temp,relH){
+		// https://www.omnicalculator.com/physics/wet-bulb
+		return temp*Math.atan(0.151977 * Math.sqrt(relH + 8.313659))
+			+ 0.00391838*Math.sqrt(relH * relH * relH) * Math.atan(0.023101 * relH)
+			- Math.atan(relH - 1.676331) + Math.atan(temp + relH) - 4.686035;
+	}
+	// Listen for messages from server
+	socket.on("setWeatherNow", function(rdata) {
+		//console.log(rdata);
+		var dataTable = document.getElementById("data");
+		let data = JSON.parse(rdata);
+		let output = dataTable.rows[0].outerHTML;
+		for(var key in data){
+			var value = data[key];
+			output += `<tr class="pi-data"><td>${value.name}</td><td>${value.temperature.toFixed(2)}</td><td>${value.humidity.toFixed(2)}</td><td>${value.pressure.toFixed(2)}</td><td>${value.timestamp}</td></tr>`;
+		}
+		dataTable.innerHTML = `${output}`;
+	});
+
+	setInterval('socket.emit("getWeatherNow","1");',6000);
+	</script>
+        <!--<script>
             const RefreshTime = 5000; //Refreshzeit in Millisekunden, ändern?
             setTimeout(function(){ location.reload(); }, RefreshTime);
-        </script>
+	</script> -->
     </head>
     <body>
         <h1>Sensordaten Raspberry Pis</h1>
-        <table>
+        <table id="data">
             <tr>
                 <!--<th>Messgröße</th>
                 {{ HerePis }}
