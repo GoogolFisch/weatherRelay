@@ -149,15 +149,20 @@ def getFromData(string):
         for sp in spaces:
             dic = dict()
             dic["timestamp"] = time +"-00"
-            parts = spaces.split(",")
+            parts = sp.split(",")
             dic["name"] = parts[0][2:]
             dic["temperature"] = parts[1][2:]
-            dic["humiity"] = parts[2][2:]
+            dic["humidity"] = parts[2][2:]
             dic["pressure"] = parts[3][2:]
             upDic[dic["name"]] = dic
         outp.append(upDic)
     return outp
 
+@app.route('/data/weather.json')
+def get_WetterData():
+    with open(WEATHERDATA_FILE,"r")as fptr:
+        outp = fptr.read()
+    return Response(json.dumps(getFromData(outp)),mimetype="application/json")
 
 
 @app.route('/file/<fileName>')

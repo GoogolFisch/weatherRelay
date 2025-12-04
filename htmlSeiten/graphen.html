@@ -84,18 +84,24 @@
                 return isNaN(d) ? null : d;
             }
 
+            function extractDateFromString(timestamp){
+                return `${timestamp.substr(0,10)} ${timestamp.substr(11,2)}:${timestamp.substr(14,2)}`;
+            }
+
             //empfangene Daten normalisieren (Raspi, Datum, Zeit oder Luftdruck)
             function normalizeRecords(arr) {
                 const out = [];
-                for (const r of arr) {
-                    const device = normalizeDeviceName(r.pi || r.device || r.host || r.name || r.id);
-                    const date = toDate(r.time || r.timestamp || r.date || r.ts || r.when);
-                    if (!date) continue;
-                    const temp = (r.temp !== undefined) ? Number(r.temp) :
-                        (r.temperature !== undefined) ? Number(r.temperature) : (Number.isFinite(r.value) ? Number(r.value) : null);
-                    const pres = (r.pressure !== undefined) ? Number(r.pressure) :
-                        (r.pres !== undefined) ? Number(r.pres) : null;
-                    out.push({ device, date, temp: Number.isFinite(temp) ? temp : null, pressure: Number.isFinite(pres) ? pres : null });
+                for (const element of arr) {
+                    for (const [k,r] of Object.entries(element)) {
+                        const device = normalizeDeviceName(r.pi || r.device || r.host || r.name || r.id);
+                        const date = toDate(r.time || extractDateFromString(r.timestamp) || r.date || r.ts || r.when);
+                        if (!date) continue;
+                        const temp = (r.temp !== undefined) ? Number(r.temp) :
+                            (r.temperature !== undefined) ? Number(r.temperature) : (Number.isFinite(r.value) ? Number(r.value) : null);
+                        const pres = (r.pressure !== undefined) ? Number(r.pressure) :
+                            (r.pres !== undefined) ? Number(r.pres) : null;
+                        out.push({ device, date, temp: Number.isFinite(temp) ? temp : null, pressure: Number.isFinite(pres) ? pres : null });
+                    }
                 }
                 return out.sort((a, b) => a.date - b.date);
             }
@@ -293,11 +299,14 @@
             }
 
             async function loadAndDraw() {
-                let tempJson = await fetchJson(TEMP_JSON);
-                let pressJson = await fetchJson(PRESS_JSON);
+                let tempJson = [];
+                let pressJson = tempJson;
+                pressJson = tempJson = await fetchJson("/data/weather.json");
+                //let tempJson = await fetchJson(TEMP_JSON);
+                //let pressJson = await fetchJson(PRESS_JSON);
 
                 if (!tempJson && !pressJson) {
-                    const combined = await fetchJson('./data/data.json') || await fetchJson('/api/measurements') || null;
+                    const combined = await fetchJson('/data/data.json') || await fetchJson('/api/measurements') || null;
                     if (combined) {
                         tempJson = combined;
                         pressJson = combined;
@@ -314,7 +323,7 @@
                             { pi: 'raspi-blue', time: new Date(Date.now() - 24 * 3600 * 1000 + 3600 * 1000).toISOString(), temp: 18.9, pressure: 1011.7 }
                         ];
                     }
-                }
+                } // */
 
                 // zu einzelnem Array zusammenfassen
                 function flatten(maybe) {
