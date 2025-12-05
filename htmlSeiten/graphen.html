@@ -190,10 +190,9 @@
                 // Reihenfolge für korrekte Farben
                 const keys = Array.from(map.keys());
                 //const ordered = ['RaspiR', 'RaspiB', ...keys.filter(k => k !== 'RaspiR' && k !== 'RaspiB')];
-		// this adds colors back?
+                // this adds colors back?
                 const ordered = [ ...keys.filter(k => k !== 'RaspiR' && k !== 'RaspiB')];
                 for (const k of ordered) {
-			debugger;
                     if (!map.has(k)) continue;
                     datasets.push({
                         label: k,
@@ -349,7 +348,6 @@
                 const { tempMap: rawTempMap, presMap: rawPresMap } = buildSeries(normalized); 
 
                 // Farben und Reihenfolge erzwingen, auch wenn keine Daten vorliegen
-		//debugger;
                 if (!rawTempMap.has('RaspiR')) rawTempMap.set('RaspiR', []);
                 if (!rawTempMap.has('RaspiB')) rawTempMap.set('RaspiB', []);
                 if (!rawPresMap.has('RaspiR')) rawPresMap.set('RaspiR', []);
