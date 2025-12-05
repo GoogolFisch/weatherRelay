@@ -93,7 +93,8 @@
                 const out = [];
                 for (const element of arr) {
                     for (const [k,r] of Object.entries(element)) {
-                        const device = normalizeDeviceName(r.pi || r.device || r.host || r.name || r.id);
+                        //const device = normalizeDeviceName(r.pi || r.device || r.host || r.name || r.id);
+                        const device = r.name; // don't normalize name (Testing)
                         const date = toDate(r.time || extractDateFromString(r.timestamp) || r.date || r.ts || r.when);
                         if (!date) continue;
                         const temp = (r.temp !== undefined) ? Number(r.temp) :
@@ -181,14 +182,18 @@
                 return out;
             }
 
+            // TODO adding more colors
             const COLOR = { RaspiR: '#ef4444', RaspiB: '#2563eb' };
 
             function buildDatasets(map, defaultLabels) {
                 const datasets = [];
                 // Reihenfolge für korrekte Farben
                 const keys = Array.from(map.keys());
-                const ordered = ['RaspiR', 'RaspiB', ...keys.filter(k => k !== 'RaspiR' && k !== 'RaspiB')];
+                //const ordered = ['RaspiR', 'RaspiB', ...keys.filter(k => k !== 'RaspiR' && k !== 'RaspiB')];
+		// this adds colors back?
+                const ordered = [ ...keys.filter(k => k !== 'RaspiR' && k !== 'RaspiB')];
                 for (const k of ordered) {
+			debugger;
                     if (!map.has(k)) continue;
                     datasets.push({
                         label: k,
@@ -344,6 +349,7 @@
                 const { tempMap: rawTempMap, presMap: rawPresMap } = buildSeries(normalized); 
 
                 // Farben und Reihenfolge erzwingen, auch wenn keine Daten vorliegen
+		//debugger;
                 if (!rawTempMap.has('RaspiR')) rawTempMap.set('RaspiR', []);
                 if (!rawTempMap.has('RaspiB')) rawTempMap.set('RaspiB', []);
                 if (!rawPresMap.has('RaspiR')) rawPresMap.set('RaspiR', []);
