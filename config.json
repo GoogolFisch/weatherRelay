@@ -1,0 +1,17 @@
+{
+	"doSetup":true,
+	"useIp4":true,
+	"ip4":"172.16.0.0/12",
+	"ip6":"10::/16",
+	"replyService":2048,
+	"hostReply":"./hostname.txt",
+	"ttd":60,
+	"messageLimit":30,
+	"brdSleep":5,
+	"rescanScale":600,
+	"passMessages":true,
+	"acceptConnections":true,
+	"makeFirstConnections":true,
+	"makeConnections":true,
+	"uuid":"0ff13917-f5e3-4d37-bf91-5c51f6c81bb3"
+}
