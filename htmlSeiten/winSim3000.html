@@ -19,6 +19,7 @@
 			+ 0.00391838*Math.sqrt(relH * relH * relH) * Math.atan(0.023101 * relH)
 			- Math.atan(relH - 1.676331) + Math.atan(temp + relH) - 4.686035;
 	}
+	var manualAutoCloseWindow = 0;
 	// Listen for messages from server
 	socket.on("setWeatherNow", function(rdata) {
 		var messages = document.getElementById("Weather");
@@ -27,6 +28,7 @@
 		let data = JSON.parse(rdata);
 		let output = ""
 		let isDangerous,isHeater,isWindow;
+		let anyDanger = false;
 		for(var key in data){
 			var value = data[key];
 			isDangerous = WetBulb(value.temperature,value.humidity) > 30;
@@ -34,8 +36,10 @@
 			isWindow = value.temperature > wnTempRange.value;
 			output += `<p `;
 			if(isHeater){
+				anyDanger = true;
 				output += `class="red">At ${value.name} is it ${value.temperature}°C and too cold, you have to turn on the heater!`;
 			}else if(isDangerous){
+				anyDanger = true;
 				output += `class="black">At ${value.name} is way too hot⚠️, opening a window... (${value.temperature}°C and ${value.humidity}RH%)`;
 			}else if(isWindow){
 				output += `class="blue">At ${value.name} is it warm, opening a window... (${value.temperature}°C)`;
@@ -46,6 +50,20 @@
 			output += "</p>";
 		}
 		messages.innerHTML = `${output}`;
+		messages = document.getElementById("Fenster");
+		let nowDate = new Date();
+		let hours = nowDate.getHours();
+		let minutes = nowDate.getMinutes();
+		if(nowDate.getTime() < manualAutoCloseWindow)
+			messages.innerHTML = "Fenster ist vom Nutzer aufgemacht worden";
+		if(anyDanger)
+			messages.innerHTML = "Fenster wird geschlossen gehalten!";
+		else if(hours & 3 != 0)
+			messages.innerHTML = "Fenster ist nun geschlossen";
+		else if(minutes > 6)
+			messages.innerHTML = "Fenster ist nun geschlossen";
+		else messages.innerHTML = "Fenster sind nun offen";
+		//messages.innerHTML = "Hello";
 	});
 
 	setInterval('socket.emit("getWeatherNow","1");',6000);
@@ -66,6 +84,8 @@
 	oninput="document.getElementById('WnTRangeO').innerHTML = event.target.value + '°C';">
 	<output id="WnTRangeO">24°C</output>
 	<br>
+	<p id="Fenster">Fenster ist gerade offen.</p>
+	<button onclick="manualAutoCloseWindow = (new Date()).getTime() + 300 * 1000;document.getElementById('Fenster').innerHTML = 'Fenster ist gerade offen.';">Open window</button>
 	<div id="Weather"></div>
 
 </body>

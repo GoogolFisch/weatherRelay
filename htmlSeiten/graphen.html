@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link rel="stylesheet" type="text/css" href="/file/style.css" />
     <title>Graphen Datenübersicht</title>
     <style>
         .chart-wrap {
@@ -147,7 +147,9 @@
                     const res = [];
                     let idx = 0;
                     let lastVal = null;
-                    for (let t = start; t <= end; t += 5 * 60 * 1000) {
+                    for (let t = start; t <= end && idx < arr.length; t += 5 * 60 * 1000) {
+                        // TODO adding better stuffing
+                        if (arr[idx].x.getTime() > t)continue;
                         while (idx < arr.length && arr[idx].x.getTime() <= t) {
                             lastVal = arr[idx].y;
                             idx++;
