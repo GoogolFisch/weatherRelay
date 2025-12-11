@@ -7,6 +7,7 @@ cd "$SCRIPT_DIR" || exit
 
 source ./bin/activate
 
-python3.11 centralServer.py
+python3.11 centralServer.py &
+./blueRelay.py
 
 deactivate
