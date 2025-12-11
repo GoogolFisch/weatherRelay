@@ -9,6 +9,10 @@ import select
 import socket
 import json
 import re
+try:
+    import lzma
+except:
+    pass
 
 app = Flask(__name__)
 appSocket = SocketIO(app)
@@ -22,7 +26,7 @@ reqAddresses = []
 reqSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 reqSocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
 PORT = 2680  
-WEATHERDATA_FILE = "temp.data"
+WEATHERDATA_FILE = "." + os.sep + "temp" + os.sep
 HTML_DEFAULT_PATH = "." + os.sep + "htmlSeiten" + os.sep
 
 if("sensor_data" not in globals()):
@@ -72,7 +76,11 @@ def get_pi_addresses(interval = 60):
 
 
 def fetch_data_from_pis(interval = 5):
-    fptr = open(WEATHERDATA_FILE,"a")
+    # TODO add dating to file-name
+    try:
+        fptr = lzma.open(WEATHERDATA_FILE + "temp.xz","a")
+    except:
+        fptr = open(WEATHERDATA_FILE + "temp.data","ab")
     lastMin = ""
     currentMin = ""
     minuteData = {}
@@ -98,7 +106,7 @@ def fetch_data_from_pis(interval = 5):
         if(lastMin == ""):lastMin = currentMin
         if(currentMin != lastMin):
             print(lastMin,minuteData)
-            fptr.write(lastMin + " ")
+            fptr.write(bytes(lastMin + " ","utf-8"))
             isFirst = True
             for name,val in minuteData.items():
                 naming = val["name"]
@@ -112,8 +120,8 @@ def fetch_data_from_pis(interval = 5):
                 outp += f't:{val["temperature"]:.2f},'
                 outp += f'h:{val["humidity"]:.2f},'
                 outp += f'p:{val["pressure"]:.1f}'
-                fptr.write(outp)
-            fptr.write("\n")
+                fptr.write(bytes(outp,"utf-8"))
+            fptr.write(b"\n")
             if(lastMin[-1] == "0" or lastMin[-1] == "5"):
                 os.fsync(fptr)
             minuteData.clear()
@@ -136,6 +144,10 @@ def fetch_data_from_pis(interval = 5):
     print("StoppFetch")
 
 
+def sanitise(filename):
+    keepcharacters = ('.','_')
+    return "".join(c for c in filename if c.isalnum() or c in keepcharacters).rstrip()
+
 def getFromData(string):
     outp = []
     lines = string.split("\n")
@@ -145,24 +157,46 @@ def getFromData(string):
         if(not re.match("\d\d(\d\d[-_]){4}\d\d",time)):
             continue
         spaces = spaces[1:]
-        upDic = dict()
-        for sp in spaces:
-            dic = dict()
-            dic["timestamp"] = time +"-00"
-            parts = sp.split(",")
-            dic["name"] = parts[0][2:]
-            dic["temperature"] = parts[1][2:]
-            dic["humidity"] = parts[2][2:]
-            dic["pressure"] = parts[3][2:]
-            upDic[dic["name"]] = dic
-        outp.append(upDic)
+        try:
+            upDic = dict()
+            for sp in spaces:
+                dic = dict()
+                dic["timestamp"] = time +"-00"
+                parts = sp.split(",")
+                dic["name"] = parts[0][2:]
+                dic["temperature"] = parts[1][2:]
+                dic["humidity"] = parts[2][2:]
+                dic["pressure"] = parts[3][2:]
+                upDic[dic["name"]] = dic
+            outp.append(upDic)
+        except:
+            # if an extra timestamp is stored
+            # or to catch any other error!
+            pass
     return outp
 
-@app.route('/data/weather.json')
-def get_WetterData():
-    with open(WEATHERDATA_FILE,"r")as fptr:
-        outp = fptr.read()
-    return Response(json.dumps(getFromData(outp)),mimetype="application/json")
+@app.route('/data/<fileName>')
+def get_WetterData(fileName):
+    fileName = sanitise(fileName)
+    try:
+        if(len(fileName) in [0,1]):
+            outp = os.listdir(WEATHERDATA_FILE)
+        elif(fileName.endswith(".data")):
+            with open(WEATHERDATA_FILE + fileName,"r")as fptr:
+                outp = fptr.read()
+            outp = getFromData(outp)
+        else:
+            with lzma.open(WEATHERDATA_FILE + fileName,"r") as fptr:
+                outp = str(fptr.read(),"utf-8")
+            outp = getFromData(outp)
+        return Response(json.dumps(outp),mimetype="application/json")
+    except Exception as error:
+        e = (type(error).__name__+"\n"+          # TypeError
+        __file__+"\n"+                  # /tmp/example.py
+        error.__traceback__.tb_lineno+"\n"+  # 2
+        error)
+
+        return Response(str(e),mimetype="application/json")
 
 
 @app.route('/file/<fileName>')
@@ -176,8 +210,7 @@ def get_style_css(fileName):
         ext = extList[ext]
     else:
         ext = "text/html"
-    if(".." in fileName):
-        return Respnse("No!")
+    fileName = sanitise(fileName)
     with open(HTML_DEFAULT_PATH + fileName,"r") as fptr:
         data = fptr.read()
     return Response(data,mimetype=ext)
@@ -218,13 +251,15 @@ def socket_GetWeatherNow(data):
     length = 1024 # last 1024 bytes?
     start = -1 # (end)
     fmt = "raw"
+    file = "temp.data"
     try:
         jsData = json.loads(data)
         length = int(jsData["length"])
         start = int(jsData["start"])
         fmt = jsData["fmt"]
+        file = sanitise(jsData["file"])
     except:pass
-    with open(WEATHERDATA_FILE,"r")as fptr:
+    with open(WEATHERDATA_FILE + file,"r")as fptr:
         maxima = fptr.seek(0,2) # seek(0,end)
         if(length == -1):length = maxima
         if(start == -1):fptr.seek(maxima - length)
@@ -233,13 +268,13 @@ def socket_GetWeatherNow(data):
         outp = json.dumps(getFromData(outp))
     emit("sendWeather",outp)
 
-@app.route("/graph/")
+@app.route("/graph")
 def graphen():
     with open(HTML_DEFAULT_PATH + "graphen.html","r")as fptr:
         htmlData = fptr.read()
     return render_template_string(htmlData)
 
-@app.route("/winSim3000/")
+@app.route("/winSim3000")
 def winSim3000():
     with open(HTML_DEFAULT_PATH + "winSim3000.html","r")as fptr:
         htmlData = fptr.read()

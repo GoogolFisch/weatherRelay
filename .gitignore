@@ -1,4 +1,8 @@
 
+# remove temprature
+temp/
+temp.*
+
 # bin and other venv files!
 bin/
 lib64*
