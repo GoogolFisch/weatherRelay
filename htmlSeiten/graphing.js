@@ -3,6 +3,7 @@
             const PRESS_JSON = './data/Luftdruck.json';     // zu File Luftdruck
             const tempCtx = document.getElementById('tempChart').getContext('2d');
             const pressCtx = document.getElementById('pressChart').getContext('2d');
+            const humiCtx = document.getElementById('humiChart').getContext('2d');
 
             // Raspinamen normalisieren
             function normalizeDeviceName(raw) {
@@ -51,7 +52,8 @@
                             (r.temperature !== undefined) ? Number(r.temperature) : (Number.isFinite(r.value) ? Number(r.value) : null);
                         const pres = (r.pressure !== undefined) ? Number(r.pressure) :
                             (r.pres !== undefined) ? Number(r.pres) : null;
-                        out.push({ device, date, temp: Number.isFinite(temp) ? temp : null, pressure: Number.isFinite(pres) ? pres : null });
+			const humi = (r.humidity !== undefined) ? Number(r.humidity) : null;
+                        out.push({ device, date, temp: Number.isFinite(temp) ? temp : null, pressure: Number.isFinite(pres) ? pres : null ,humi: Number.isFinite(humi) ? humi : null});
                     }
                 }
                 return out.sort((a, b) => a.date - b.date);
@@ -61,6 +63,7 @@
             function buildSeries(records) {
                 const tempMap = new Map();
                 const presMap = new Map();
+                const humiMap = new Map();
                 for (const r of records) {
                     if (r.temp !== null) {
                         if (!tempMap.has(r.device)) tempMap.set(r.device, []);
@@ -70,10 +73,15 @@
                         if (!presMap.has(r.device)) presMap.set(r.device, []);
                         presMap.get(r.device).push({ x: r.date, y: r.pressure });
                     }
+                    if (r.humidity !== null) {
+                        if (!humiMap.has(r.device)) humiMap.set(r.device, []);
+                        humiMap.get(r.device).push({ x: r.date, y: r.humi });
+                    }
                 }
                 for (const v of tempMap.values()) v.sort((a, b) => a.x - b.x);
                 for (const v of presMap.values()) v.sort((a, b) => a.x - b.x);
-                return { tempMap, presMap };
+                for (const v of humiMap.values()) v.sort((a, b) => a.x - b.x);
+                return { tempMap, presMap, humiMap };
             }
 
             // 5-Minuten-Takt, letzter bekannter Wert wird übernommen
@@ -160,7 +168,7 @@
                 return datasets;
             }
 
-            function createTempChart(ctx, datasets) {
+            function createClockChart(ctx, datasets, rotatedtext) {
                 return new Chart(ctx, {
                     type: 'line',
                     data: { datasets },
@@ -195,7 +203,8 @@
                                 title: { display: true, text: 'Zeit' }
                             },
                             y: {
-                                title: { display: true, text: 'Temperatur (°C)' }
+                                title: { display: true, text: rotatedtext }
+                                //title: { display: true, text: 'Temperatur (°C)' }
                             }
                         }
                     }
@@ -298,7 +307,7 @@
                 const combinedRecords = flatten(tempJson).concat(flatten(pressJson));
                 const normalized = normalizeRecords(combinedRecords);
 
-                const { tempMap: rawTempMap, presMap: rawPresMap } = buildSeries(normalized); 
+                const { tempMap: rawTempMap, presMap: rawPresMap, humiMap: rawHumiMap } = buildSeries(normalized); 
 
                 // Farben und Reihenfolge erzwingen, auch wenn keine Daten vorliegen
                 if (!rawTempMap.has('RaspiR')) rawTempMap.set('RaspiR', []);
@@ -310,15 +319,20 @@
                 const tempMap = resampleTo5Min(rawTempMap);
 
                 // tägliche Aggregation Luftdruck
-                const pressMap = aggregateDailyPressure(rawPresMap);
+                //const pressMap = aggregateDailyPressure(rawPresMap);
+                const pressMap = resampleTo5Min(rawPresMap);
+                const humidityMap = resampleTo5Min(rawHumiMap);
 
                 // Farbe und Reihenfolge festlegen
                 const tempDatasets = buildDatasets(tempMap);
                 const pressDatasets = buildDatasets(pressMap);
+                const humiDatasets = buildDatasets(humidityMap);
 
                 // Charts erstellen
-                createTempChart(tempCtx, tempDatasets);
-                createPressureChart(pressCtx, pressDatasets);
+                createClockChart(tempCtx, tempDatasets, "Temperatur (°C)");
+                //createPressureChart(pressCtx, pressDatasets);
+                createClockChart(pressCtx, pressDatasets, "Luftdruck (hPa)");
+                createClockChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)");
             }
 
             loadAndDraw();

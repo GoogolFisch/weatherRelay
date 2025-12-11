@@ -31,14 +31,19 @@
 
     <div class="chart-wrap">
         <h2>Temperatur</h2>
-        <p>alle 5 Minuten geupdatet</p>
+        <p>jede 5 Minuten</p>
         <div class="chart-box">
             <canvas id="tempChart" role="img"></canvas>
         </div>
         <h2>Luftdruck</h2>
-        <p>täglicher Druchschnitt</p>
+        <p>jede 5 Minuten</p>
         <div class="chart-box">
             <canvas id="pressChart" role="img"></canvas>
+        </div>
+        <h2>Luftfeuchtigkeit</h2>
+        <p>jede 5 Minuten</p>
+        <div class="chart-box">
+            <canvas id="humiChart" role="img"></canvas>
         </div>
     </div>
     <ul id="fileList">
@@ -65,23 +70,19 @@ function mapOfParameterBar() {
 var mapOfParams = mapOfParameterBar();
 var gettingFile = mapOfParams["file"] || "temp.xz";
 gettingFile = "/data/" + gettingFile;
-var listingFiles = mapOfParams["file"] === undefined;
-if(listingFiles){
-	(async function(){
-		let listing = document.getElementById("fileList");
-		const res = await fetch("/data/a", { cache: 'no-store' });
-		debugger;
-		if (!res.ok)
-			throw new Error('network');
-		const j = await res.json();
-		let outp = "";
-		for(let x = 0;x < j.length;x++){
-			outp += `<li><a href="?file=${j[x]}">${j[x]}</a></li>`;
-		}
-		listing.innerHTML = outp;
+(async function(){
+	let listing = document.getElementById("fileList");
+	const res = await fetch("/data/a", { cache: 'no-store' });
+	if (!res.ok)
+		throw new Error('network');
+	const j = await res.json();
+	let outp = "";
+	for(let x = 0;x < j.length;x++){
+		outp += `<li><a href="?file=${j[x]}">${j[x]}</a></li>`;
+	}
+	listing.innerHTML = outp;
 
-	})();
-}
+})();
     </script>
     <script src="/file/graphing.js"></script>
 </body>
