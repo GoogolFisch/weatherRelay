@@ -23,31 +23,34 @@
             width: 100%;
             height: 100%;
         }
+	.sidebar{height:100%;width:200px;background-color:#fff;position:fixed;z-index:1;overflow:auto;margin:0px;}
+	.bar-item{width:100%;display:block;padding:8px 16px;text-align:left;border:none;white-space:normal;float:none;outline:0;}
     </style>
 </head>
 <body>
+<nav class="sidebar">
+    <ul id="fileList" class="bar-item">
+    </ul>
+</nav>
+<main style="margin-left: 200px;">
     <h1>Graphen</h1>
-    <p>temperatur-Zeit, Luftdruck-Zeit, Wetterwarnung basiert auf Luftdruckveränderungen</p>
+    <p style="text-align: center">temperatur-Zeit, Luftdruck-Zeit, Wetterwarnung basiert auf Luftdruckveränderungen</p>
 
     <div class="chart-wrap">
-        <h2>Temperatur</h2>
-        <p>jede 5 Minuten</p>
+        <h2>Temperatur Graph</h2>
         <div class="chart-box">
             <canvas id="tempChart" role="img"></canvas>
         </div>
-        <h2>Luftdruck</h2>
-        <p>jede 5 Minuten</p>
+        <h2>Luftdruck Graph</h2>
         <div class="chart-box">
             <canvas id="pressChart" role="img"></canvas>
         </div>
-        <h2>Luftfeuchtigkeit</h2>
-        <p>jede 5 Minuten</p>
+        <h2>Luftfeuchtigkeit Graph</h2>
         <div class="chart-box">
             <canvas id="humiChart" role="img"></canvas>
         </div>
     </div>
-    <ul id="fileList">
-    </ul>
+</main>
 
     <!-- Chart.js + Luxon Adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

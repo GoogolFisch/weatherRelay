@@ -304,7 +304,7 @@
                     return arr;
                 }
 
-                const combinedRecords = flatten(tempJson).concat(flatten(pressJson));
+                const combinedRecords = flatten(tempJson);//.concat(flatten(pressJson));
                 const normalized = normalizeRecords(combinedRecords);
 
                 const { tempMap: rawTempMap, presMap: rawPresMap, humiMap: rawHumiMap } = buildSeries(normalized); 
@@ -324,9 +324,15 @@
                 const humidityMap = resampleTo5Min(rawHumiMap);
 
                 // Farbe und Reihenfolge festlegen
+                /*
                 const tempDatasets = buildDatasets(tempMap);
                 const pressDatasets = buildDatasets(pressMap);
                 const humiDatasets = buildDatasets(humidityMap);
+                /*/
+                const tempDatasets = buildDatasets(rawTempMap);
+                const pressDatasets = buildDatasets(rawPresMap);
+                const humiDatasets = buildDatasets(rawHumiMap);
+                /* */
 
                 // Charts erstellen
                 createClockChart(tempCtx, tempDatasets, "Temperatur (°C)","°C");
