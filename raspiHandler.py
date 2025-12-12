@@ -68,7 +68,7 @@ def compressFiles(fileNames=[]):
         # could also put this into xz
         with open(WEATHERDATA_FILE + file,"rb") as fptr:
             outp = fptr.read()
-        with lzma.open(WEATHERDATA_FILE + file[:-5],"a")as fptr:
+        with lzma.open(WEATHERDATA_FILE + file[:-5] + ".xz","a")as fptr:
             fptr.write(outp)
             fptr.flush()
         os.remove(WEATHERDATA_FILE + file)
@@ -84,6 +84,7 @@ def fetch_data_from_pis(interval = 5):
     minuteData = {}
     exiting = False
     cpAddresses = []
+    hasData = False
     while True:
         for ipAddr,piname in cpAddresses:
             if(type(piname) == bytes):
@@ -93,19 +94,20 @@ def fetch_data_from_pis(interval = 5):
                 url = f'http://{ipAddr}:{PORT}'
                 response = requests.get(url, timeout=5)#,max_retries=1)
                 if response.status_code == 200:
+                    hasData = True
                     data = response.json()[0]
                     data["name"] = piname
                     sensor_data[piname] = data
                     minuteData[piname] = data
-                    currentMin = data["timestamp"][:-3]
                 else: print(f"Fehler bei Pi{i} ({ip}): Status {response.status_code}")
             except Exception as e:
                 print(f"Verbindungsfehler zu Pi-{piname} ({ipAddr}): {e}")
+        currentMin = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M ");
         if(lastMin == ""):lastMin = currentMin
-        if(currentMin != lastMin):
+        if(currentMin != lastMin and hasData):
+            hasData = False
             print(lastMin,minuteData)
-            strfTime2 = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M ");
-            fptr.write(bytes(strfTime2,"utf-8"))
+            fptr.write(bytes(currentMin,"utf-8"))
             isFirst = True
             for name,val in minuteData.items():
                 naming = val["name"]
@@ -132,7 +134,7 @@ def fetch_data_from_pis(interval = 5):
                 fptr.close()
                 strfTime = strfTime2
                 # start the compression thread
-                listing = os.listdir(WEATHERDATE_FILE)
+                listing = os.listdir(WEATHERDATA_FILE)
                 th = Thread(target=compressFiles,args=(listing,))
                 th.start()
                 fptr = open(WEATHERDATA_FILE + f"{strfTime}.data","ab")
@@ -151,7 +153,7 @@ def fetch_data_from_pis(interval = 5):
         if(exiting):break
     fptr.flush()
     fptr.close()
-    listing = os.listdir(WEATHERDATE_FILE)
+    listing = os.listdir(WEATHERDATA_FILE)
     # start the compression thread
     th = Thread(target=compressFiles,args=(listing,))
     th.start()

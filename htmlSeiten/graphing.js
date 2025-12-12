@@ -321,7 +321,7 @@
                 // tägliche Aggregation Luftdruck
                 //const pressMap = aggregateDailyPressure(rawPresMap);
                 const pressMap = resampleTo5Min(rawPresMap);
-                const humidityMap = resampleTo5Min(rawHumiMap);
+                //const humidityMap = resampleTo5Min(rawHumiMap);
 
                 // Farbe und Reihenfolge festlegen
                 /*
@@ -330,7 +330,8 @@
                 const humiDatasets = buildDatasets(humidityMap);
                 /*/
                 const tempDatasets = buildDatasets(rawTempMap);
-                const pressDatasets = buildDatasets(rawPresMap);
+                const pressDatasets = buildDatasets(pressMap);
+                //const pressDatasets = buildDatasets(rawPresMap);
                 const humiDatasets = buildDatasets(rawHumiMap);
                 /* */
 
