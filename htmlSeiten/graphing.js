@@ -168,7 +168,7 @@
                 return datasets;
             }
 
-            function createClockChart(ctx, datasets, rotatedtext) {
+            function createClockChart(ctx, datasets, rotatedtext, mesUnit) {
                 return new Chart(ctx, {
                     type: 'line',
                     data: { datasets },
@@ -186,7 +186,7 @@
                                         const dt = (x instanceof Date) ? luxon.DateTime.fromJSDate(x) : luxon.DateTime.fromMillis(Number(x));
                                         return dt.toFormat('HH:mm');
                                     },
-                                    label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} °C`
+                                    label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} ${mesUnit}`
                                 }
                             }
                         },
@@ -329,10 +329,10 @@
                 const humiDatasets = buildDatasets(humidityMap);
 
                 // Charts erstellen
-                createClockChart(tempCtx, tempDatasets, "Temperatur (°C)");
+                createClockChart(tempCtx, tempDatasets, "Temperatur (°C)","°C");
                 //createPressureChart(pressCtx, pressDatasets);
-                createClockChart(pressCtx, pressDatasets, "Luftdruck (hPa)");
-                createClockChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)");
+                createClockChart(pressCtx, pressDatasets, "Luftdruck (hPa)","hPa");
+                createClockChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)","%rH");
             }
 
             loadAndDraw();
