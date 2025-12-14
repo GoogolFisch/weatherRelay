@@ -26,7 +26,7 @@ def getFromData(string):
     for ln in lines:
         spaces = ln.split(" ")
         time = spaces[0]
-        if(not re.match("\d\d(\d\d[-_]){4}\d\d",time)):
+        if(not re.match(r"\d\d(\d\d[-_]){4}\d\d",time)):
             continue
         spaces = spaces[1:]
         try:
@@ -168,8 +168,6 @@ def fetch_data_from_pis(interval = 5):
 # RaspyIP
 
 if __name__ == '__main__':
-    print("starte zentralen Server auf Port 5000")
-    print("öffne im Browser: http://<IP HIER>:5000")
     # worker threads
     timFetch = Thread(target=fetch_data_from_pis,args=(5,))
     timGetPi = Thread(target=get_pi_addresses,args=(60,))
@@ -180,7 +178,6 @@ if __name__ == '__main__':
         while True:
             time.sleep(1)
     except:pass
-    #requires pyopenssl
     with mutex:
         while (running):
             running = False;time.sleep(0.1)
