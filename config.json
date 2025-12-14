@@ -6,7 +6,7 @@
 	"replyService":2048,
 	"hostReply":"./hostname.txt",
 	"ttd":60,
-	"messageLimit":30,
+	"messageLimit":10,
 	"brdSleep":5,
 	"rescanScale":600,
 	"passMessages":true,
