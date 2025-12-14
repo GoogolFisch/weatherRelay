@@ -211,7 +211,7 @@
                 });
             }
 
-            function createPressureChart(ctx, datasets) {
+            function createPressureChart(ctx, datasets, rotatedtext, mesUnit) {
                 return new Chart(ctx, {
                     type: 'line',
                     data: { datasets },
@@ -229,7 +229,7 @@
                                         const dt = (x instanceof Date) ? luxon.DateTime.fromJSDate(x) : luxon.DateTime.fromMillis(Number(x));
                                         return dt.toFormat('dd.MM.yyyy');
                                     },
-                                    label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} hPa`
+                                    label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} ${mesUnit}`
                                 }
                             }
                         },
@@ -244,7 +244,7 @@
                                 title: { display: true, text: 'Datum' }
                             },
                             y: {
-                                title: { display: true, text: 'Luftdruck (hPa)' }
+                                title: { display: true, text: rotatedtext }
                             }
                         }
                     }
@@ -336,10 +336,15 @@
                 /* */
 
                 // Charts erstellen
-                createClockChart(tempCtx, tempDatasets, "Temperatur (°C)","°C");
-                //createPressureChart(pressCtx, pressDatasets);
-                createClockChart(pressCtx, pressDatasets, "Luftdruck (hPa)","hPa");
-                createClockChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)","%rH");
+		if(gettingFile.indexOf("akku") != -1){
+                    createPressureChart(tempCtx, tempDatasets, "Temperatur (°C)","°C");
+                    createPressureChart(pressCtx, pressDatasets, "Luftdruck (hPa)","hPa");
+                    createPressureChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)","%rH");
+		} else {
+                    createClockChart(tempCtx, tempDatasets, "Temperatur (°C)","°C");
+                    createClockChart(pressCtx, pressDatasets, "Luftdruck (hPa)","hPa");
+                    createClockChart(humiCtx, humiDatasets, "Luftfeuchtigkeit (%rH)","%rH");
+		}
             }
 
             loadAndDraw();

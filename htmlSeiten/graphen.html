@@ -25,6 +25,7 @@
         }
 	.sidebar{height:100%;width:200px;background-color:#fff;position:fixed;z-index:1;overflow:auto;margin:0px;}
 	.bar-item{width:100%;display:block;padding:8px 16px;text-align:left;border:none;white-space:normal;float:none;outline:0;}
+	.marked{color:green;}
     </style>
 </head>
 <body>
@@ -79,9 +80,13 @@ gettingFile = "/data/" + gettingFile;
 	if (!res.ok)
 		throw new Error('network');
 	const j = await res.json();
+	let refFile = mapOfParams["file"];
 	let outp = "";
 	for(let x = 0;x < j.length;x++){
-		outp += `<li><a href="?file=${j[x]}">${j[x]}</a></li>`;
+		if(j[x] == refFile)
+			outp += `<li><a class="marked" href="?file=${j[x]}">${j[x]}</a></li>`;
+		else
+			outp += `<li><a href="?file=${j[x]}">${j[x]}</a></li>`;
 	}
 	listing.innerHTML = outp;
 

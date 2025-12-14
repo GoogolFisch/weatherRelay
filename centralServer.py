@@ -5,7 +5,6 @@ from flask_socketio import SocketIO, send, emit, join_room, leave_room
 
 from threading import Timer, Lock, Thread
 import json
-import re
 import raspiHandler
 try:
     import lzma
@@ -31,32 +30,6 @@ def sanitise(filename):
     keepcharacters = ('.','_','-')
     return "".join(c for c in filename if c.isalnum() or c in keepcharacters).rstrip()
 
-def getFromData(string):
-    outp = []
-    lines = string.split("\n")
-    for ln in lines:
-        spaces = ln.split(" ")
-        time = spaces[0]
-        if(not re.match("\d\d(\d\d[-_]){4}\d\d",time)):
-            continue
-        spaces = spaces[1:]
-        try:
-            upDic = dict()
-            for sp in spaces:
-                dic = dict()
-                dic["timestamp"] = time +"-00"
-                parts = sp.split(",")
-                dic["name"] = parts[0][2:]
-                dic["temperature"] = parts[1][2:]
-                dic["humidity"] = parts[2][2:]
-                dic["pressure"] = parts[3][2:]
-                upDic[dic["name"]] = dic
-            outp.append(upDic)
-        except:
-            # if an extra timestamp is stored
-            # or to catch any other error!
-            pass
-    return outp
 
 @app.route('/data/<fileName>')
 def get_WetterData(fileName):
@@ -64,14 +37,15 @@ def get_WetterData(fileName):
     try:
         if(len(fileName) in [0,1]):
             outp = os.listdir(WEATHERDATA_FILE)
+            outp.sort()
         elif(fileName.endswith(".data")):
             with open(WEATHERDATA_FILE + fileName,"r")as fptr:
                 outp = fptr.read()
-            outp = getFromData(outp)
+            outp = raspiHandler.getFromData(outp)
         else:
             with lzma.open(WEATHERDATA_FILE + fileName,"r") as fptr:
                 outp = str(fptr.read(),"utf-8")
-            outp = getFromData(outp)
+            outp = raspiHandler.getFromData(outp)
         return Response(json.dumps(outp),mimetype="application/json")
     except Exception as error:
         e = (type(error).__name__+"\n"+          # TypeError
@@ -148,7 +122,7 @@ def socket_GetWeatherNow(data):
         if(start == -1):fptr.seek(maxima - length)
         outp = fptr.read(length)
     if(fmt == "json"):
-        outp = json.dumps(getFromData(outp))
+        outp = json.dumps(raspiHandler.getFromData(outp))
     emit("sendWeather",outp)
 
 @app.route("/graph")

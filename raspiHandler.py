@@ -1,4 +1,5 @@
 import time
+import re
 import requests
 import datetime
 import os
@@ -18,6 +19,33 @@ PORT = 2680
 mutex = Lock()
 running = True
 sensor_data = {}
+
+def getFromData(string):
+    outp = []
+    lines = string.split("\n")
+    for ln in lines:
+        spaces = ln.split(" ")
+        time = spaces[0]
+        if(not re.match(r"\d\d(\d\d[-_]){2,4}\d\d",time)):
+            continue
+        spaces = spaces[1:]
+        try:
+            upDic = dict()
+            for sp in spaces:
+                dic = dict()
+                dic["timestamp"] = time
+                parts = sp.split(",")
+                dic["name"] = parts[0][2:]
+                dic["temperature"] = float(parts[1][2:])
+                dic["humidity"] = float(parts[2][2:])
+                dic["pressure"] = float(parts[3][2:])
+                upDic[dic["name"]] = dic
+            outp.append(upDic)
+        except:
+            # if an extra timestamp is stored
+            # or to catch any other error!
+            pass
+    return outp
 
 def get_pi_addresses(interval = 60):
     exiting = False
@@ -59,21 +87,73 @@ def get_pi_addresses(interval = 60):
     print("StoppGet")
 
 def compressFiles(fileNames=[]):
+    # also averaging files!
     count = 0
+    removing = []
     for file in fileNames:
-        print("Compressing file", file)
         if(not file.startswith("temp")):continue
         if(not file.endswith(".data")):continue
+        print("Compressing file", file)
         count += 1
         # could also put this into xz
         with open(WEATHERDATA_FILE + file,"rb") as fptr:
             outp = fptr.read()
+        removing.append(file[:-5])
         with lzma.open(WEATHERDATA_FILE + file[:-5] + ".xz","a")as fptr:
             fptr.write(outp)
             fptr.flush()
         os.remove(WEATHERDATA_FILE + file)
+    fpta = open(WEATHERDATA_FILE + "akku.data","a")
+    for file in removing:
+        count = {}
+        akku = {}
+        outFile = file[5:]
+        with lzma.open(WEATHERDATA_FILE + file + ".xz","r") as fptr:
+            outp = getFromData(str(fptr.read(),"utf-8"))
+        for time in outp:
+            for name, vals in time.items():
+                if(count.get(name) == None):
+                    count[name] = 1
+                    akku[name] = vals
+                    continue
+                count[name] += 1
+                for k,v in vals.items():
+                    if(k == "timestamp"):continue
+                    if(k == "name"):continue
+                    akku[name][k] += v
+        # 
+        fpta.write(outFile)
+        print(end=outFile)
+        for name,vals in akku.items():
+            print(end=f" {name},{vals}")
+            outp = " "
+            outp += f'n:{name},'
+            outp += f't:{vals["temperature"] / count[name]:.2f},'
+            outp += f'h:{vals["humidity"] / count[name]:.2f},'
+            outp += f'p:{vals["pressure"] / count[name]:.2f}'
+            fpta.write(outp)
+        print()
+        fpta.write("\n")
+    fpta.close()
     print(f"Compressed: {count} Files")
 
+def put_data_into_file(fptr,minuteData,currentMin):
+    fptr.write(bytes(currentMin,"utf-8"))
+    isFirst = True
+    for name,val in minuteData.items():
+        naming = val["name"]
+        naming = naming.replace(" ","").replace('"',"").replace("'","")
+        naming = naming.replace(",","")
+        outp = " "
+        outp += f'n:{naming},'
+        outp += f't:{val["temperature"]:.2f},'
+        outp += f'h:{val["humidity"]:.2f},'
+        outp += f'p:{val["pressure"]:.2f}'
+        fptr.write(bytes(outp,"utf-8"))
+    fptr.write(b"\n")
+    if(hash(currentMin) % 17 == 0):
+        fptr.flush()
+        os.fsync(fptr)
 
 def fetch_data_from_pis(interval = 5):
     # TODO add dating to file-name
@@ -102,30 +182,12 @@ def fetch_data_from_pis(interval = 5):
                 else: print(f"Fehler bei Pi{i} ({ip}): Status {response.status_code}")
             except Exception as e:
                 print(f"Verbindungsfehler zu Pi-{piname} ({ipAddr}): {e}")
-        currentMin = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M ");
+        currentMin = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M");
         if(lastMin == ""):lastMin = currentMin
         if(currentMin != lastMin and hasData):
             hasData = False
-            print(lastMin,minuteData)
-            fptr.write(bytes(currentMin,"utf-8"))
-            isFirst = True
-            for name,val in minuteData.items():
-                naming = val["name"]
-                naming = naming.replace(" ","").replace('"',"").replace("'","")
-                naming = naming.replace(",","")
-                if(isFirst):
-                    outp = ""
-                    isFirst = False
-                else:outp = " "
-                outp += f'n:{naming},'
-                outp += f't:{val["temperature"]:.2f},'
-                outp += f'h:{val["humidity"]:.2f},'
-                outp += f'p:{val["pressure"]:.2f}'
-                fptr.write(bytes(outp,"utf-8"))
-            fptr.write(b"\n")
-            if(lastMin[-1] == "0"):
-                fptr.flush()
-                os.fsync(fptr)
+            put_data_into_file(fptr,minuteData,currentMin)
+
             minuteData.clear()
             lastMin = currentMin
             strfTime2 = datetime.datetime.now().strftime("temp-%Y-%m-%d");
