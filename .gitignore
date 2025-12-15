@@ -3,6 +3,8 @@
 temp/
 temp.*
 
+hostname.txt
+
 # bin and other venv files!
 bin/
 lib64*
