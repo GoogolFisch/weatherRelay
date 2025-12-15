@@ -3,8 +3,8 @@
 
 ## Install
 Ubuntu \
-`apt install libbluretooth-dev` \
-`pip install git+https://github.com/pybluez/pybluez.git#egg=pybluez`
+`apt install libbluretooth-dev python3-dev` \
+`pip install git+https://github.com/pybluez/pybluez.git#egg=pybluez` \
 `pip install scapy`
 
 ## not having to accept every new device!
