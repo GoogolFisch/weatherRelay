@@ -34,6 +34,9 @@ def sanitise(filename):
 @app.route('/data/<fileName>')
 def get_WetterData(fileName):
     fileName = sanitise(fileName)
+    if(fileName.endswith(".data") and not os.path.isfile(WEATHERDATA_FILE + fileName)):
+        fileName = fileName[:-5] + ".xz"
+
     try:
         if(len(fileName) in [0,1]):
             outp = os.listdir(WEATHERDATA_FILE)
