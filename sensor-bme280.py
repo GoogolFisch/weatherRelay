@@ -36,15 +36,15 @@ def readingSensor():
         while True:
             if(useNormal):
                 bme280_data = bme280.sample(bus,address)
-                timestamp = str(bme280_data.timestamp)
+                timestamp = bme280_data.timestamp.strftime(dateFormat)
                 humidity  = bme280_data.humidity
                 pressure  = bme280_data.pressure
                 temperature = bme280_data.temperature
             else:
-                humidity  = random.uniform(0,100)
-                pressure  = random.uniform(900,1200)
+                humidity  = -random.uniform(0,100)
+                pressure  = -random.uniform(900,1200)
                 timestamp = datetime.datetime.now().strftime(dateFormat)
-                temperature = random.uniform(19,25)
+                temperature = -random.uniform(19,25)
             #print(f"{timestamp}  {humidity}% rH  {pressure} hPa  {temperature} °C")
             with runningMutex:
                 backlog.append({
