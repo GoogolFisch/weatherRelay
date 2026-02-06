@@ -1,2 +1,3 @@
 # weatherRelay
 A school project; trying to connect 2 weather stations over bluetooth or so...
+<img width="900" height="831" alt="image" src="https://github.com/user-attachments/assets/ffcf88f7-a830-4f10-aac3-67cb9a277f90" />
